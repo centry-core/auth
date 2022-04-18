@@ -17,6 +17,7 @@
 
 """ Module """
 
+import time
 import functools
 
 import flask  # pylint: disable=E0401
@@ -176,6 +177,26 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Unregister RPC proxies
         for proxy_name, _ in self._rpcs:
             delattr(self, proxy_name)
+
+    #
+    # Ping: check if auth pylon is connected
+    #
+
+    def ping(self, retry_interval=5, rpc_timeout=1, max_retries=None):
+        """ Check if auth pylon is connected """
+        retries_done = 0
+        #
+        while True:
+            try:
+                self.context.rpc_manager.timeout(rpc_timeout).auth_ping()
+                return True
+            except:  # pylint: disable=W0702
+                retries_done += 1
+                #
+                if max_retries is not None and retries_done >= max_retries:
+                    return False
+                #
+                time.sleep(retry_interval)
 
     #
     # Hooks
