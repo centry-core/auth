@@ -259,7 +259,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         return _decorator
 
-    def _decorator_sio_check(self, permissions, scope_id=1):
+    def _decorator_sio_check(self, permissions: list, scope_id: int = 1):
         """ SIO: on event """
         #
         def _decorator(func):
@@ -286,7 +286,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Decorators
     #
 
-    def _decorator_check(self, permissions, scope_id=1):
+    def _decorator_check(self, permissions: list, scope_id: int = 1):
         """ Check access to route """
         #
         def _decorator(func):
@@ -307,7 +307,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         return _decorator
 
     def _decorator_check_api(
-        self, permissions, scope_id=1,
+        self, permissions: list, scope_id: int = 1,
         access_denied_reply={"ok": False, "error": "access_denied"},
     ):
         """ Check access to API """
@@ -330,7 +330,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         return _decorator
 
     def _decorator_check_slot(
-            self, permissions, scope_id=1, access_denied_reply=None,
+            self, permissions: list, scope_id: int = 1, access_denied_reply=None,
     ):
         """ Check access to slot """
         #
@@ -372,7 +372,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Tools: current
     #
 
-    def resolve_permissions(self, scope_id=1, auth_data=None):
+    def resolve_permissions(self, scope_id: int = 1, auth_data=None):
         """ Resolve current permissions """
         if auth_data is None:
             auth_data = flask.g.auth
