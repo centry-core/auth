@@ -321,7 +321,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 #
                 if "global_admin" not in current_permissions and \
                         not set(permissions).issubset(set(current_permissions)):
-                    return access_denied_reply
+                    # return flask.make_response(access_denied_reply, 403)
+                    return access_denied_reply, 403
                 #
                 return func(*_args, **_kvargs)
             #
