@@ -1,4 +1,4 @@
-from flask import g
+from flask import g, make_response
 from flask_restful import Resource
 from pylon.core.tools import log
 
@@ -9,11 +9,10 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
-    @auth.decorators.check_api(['global_view'])
-    def get(self):
+    # @auth.decorators.check_api(['global_view'])
+    def get(self, user_id: int = 1):
 
-        user_id = g.auth.id
-        user_id = 1  # todo: remove
+        # user_id = g.auth.id # todo: remove
 
         all_tokens = auth.list_tokens(user_id)
         #
@@ -37,3 +36,4 @@ class API(Resource):
         #
         token = auth.encode_token(token_id)
         log.warning('Token for user %s : %s', user_id, token)
+        return make_response(token, 200)
