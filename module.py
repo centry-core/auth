@@ -157,16 +157,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.context.app.before_request(self._before_request_hook)
         # Enable cache
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=600)
+            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_user_permissions)
         self.get_token_permissions = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=600)
+            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_token_permissions)
         self.get_user = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=600)
+            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_user)
         self.get_token = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=600)
+            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_token)
 
         self.descriptor.init_api()
