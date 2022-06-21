@@ -169,7 +169,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_token)
 
-        self.descriptor.init_api()
+        if self.context.debug:
+            self.descriptor.init_api()
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
