@@ -27,6 +27,8 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0401
 from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
 
+from .models.pd.permissions import Permissions
+
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
     actions = {'edit', 'create', 'delete', 'view'}
@@ -70,6 +72,8 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_permission(user_permissions, required_permission):
+    log.info(f"{flask.request.path=}")
+    log.info(f"{flask.g.theme.active_mode=}")
     if "global_admin" in user_permissions:
         return True
     required_permission_parts = required_permission.split(".")
@@ -86,7 +90,6 @@ def has_permission(user_permissions, required_permission):
 
 
 def has_access(user_permissions: list, required_permissions: list) -> bool:
-    log.info(f"{required_permissions=} {user_permissions=}")
     if not required_permissions:
         return True
     return any(has_permission(user_permissions, perm) for perm in required_permissions)
@@ -192,6 +195,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["get_permissions", "auth_get_permissions"],
             ["set_permission_for_role", "auth_set_permission_for_role"],
             ["remove_permission_from_role", "auth_remove_permission_from_role"],
+            ["insert_permissions", "auth_insert_permissions"],
         ]
         # SIO auth data
         self.sio_users = dict()  # sid -> auth_data
@@ -242,6 +246,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
         if self.context.debug:
             self.descriptor.init_api()
+
+        log.info("Running DB migrations")
+        # db_migrations.run_db_migrations(self, db.url)
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
@@ -367,16 +374,32 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _update_local_permissions(self, permissions: list):
         """ Update local permissions """
+
+        log.info(f"{permissions=}")
+        if isinstance(permissions, dict):
+            self._create_template_permissions(permissions)
+
         if isinstance(permissions, list):
             for perm in permissions:
                 if isinstance(perm, str):
                     self.local_permissions.update(generate_permissions_from_string(perm))
-                elif isinstance(perm, dict):
-                    self.local_permissions.update(generate_permissions(perm))
         if isinstance(permissions, str):
             self.local_permissions.update(generate_permissions_from_string(permissions))
-        elif isinstance(permissions, dict):
-            self.local_permissions.update(generate_permissions(permissions))
+
+    def _create_template_permissions(self, permissions: dict):
+        result = []
+        perm_obj = Permissions.parse_obj(permissions)
+        extended_permissions = set()
+        for permission in perm_obj.permissions:
+            extended_permissions.update(generate_permissions_from_string(permission))
+        for perm in extended_permissions:
+            self.local_permissions.add(perm)
+            for mode, roles in perm_obj.recommended_roles.dict().items():
+                for role, value in roles.items():
+                    if value:
+                        result.append((role, mode, perm))
+        log.info(f"{result=}")
+        self.insert_permissions(result)
 
     #
     # Decorators
@@ -386,7 +409,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         """ Check access to route """
         self._update_local_permissions(permissions)
 
-        #
         def _decorator(func):
             #
             @functools.wraps(func)
@@ -409,10 +431,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def _decorator_check_api(
             self, permissions: list, scope_id: int = 1,
             access_denied_reply={"ok": False, "error": "access_denied"},
+            **kwargs
     ):
         """ Check access to API """
         self._update_local_permissions(permissions)
-
 
         def _decorator(func):
             #
@@ -420,7 +442,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kvargs):
                 #
                 current_permissions = self.resolve_permissions(scope_id)
-                log.info(f"{flask.g.theme.active_mode=}")
 
                 #
                 if any(has_permission(current_permissions, perm) for perm in permissions):
