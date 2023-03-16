@@ -72,10 +72,10 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_permission(user_permissions, required_permission):
-    log.info(f"{flask.request.path=}")
-    log.info(f"{flask.g.theme.active_mode=}")
-    if "global_admin" in user_permissions:
+    if ("global_admin" in user_permissions) or not user_permissions:
         return True
+    if ("global_admin" in required_permission) or not required_permission:
+        return True  # TODO: Placeholder for testing. Remove after it
     required_permission_parts = required_permission.split(".")
     for permission in user_permissions:
         permission_parts = permission.split(".")
@@ -89,7 +89,10 @@ def has_permission(user_permissions, required_permission):
     return False
 
 
-def has_access(user_permissions: list, required_permissions: list) -> bool:
+def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
+    if isinstance(required_permissions, dict):
+        required_permissions = Permissions.parse_obj(required_permissions).permissions
+
     if not required_permissions:
         return True
     return any(has_permission(user_permissions, perm) for perm in required_permissions)
@@ -196,6 +199,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["set_permission_for_role", "auth_set_permission_for_role"],
             ["remove_permission_from_role", "auth_remove_permission_from_role"],
             ["insert_permissions", "auth_insert_permissions"],
+            ["get_user_roles", "auth_get_user_roles"],
+            ["add_role", "auth_add_role"],
+            ["delete_role", "auth_delete_role"],
+            ["update_role_name", "auth_update_role_name"],
         ]
         # SIO auth data
         self.sio_users = dict()  # sid -> auth_data
@@ -358,10 +365,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 sid = _args[1]
                 #
                 current_permissions = self.resolve_permissions(
-                    scope_id, auth_data=self.sio_users[sid]
+                    mode='administration', auth_data=self.sio_users[sid]
                 )
                 #
-                if any(has_permission(current_permissions, perm) for perm in permissions):
+                if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
                 #
                 return None
@@ -414,9 +421,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
                 #
-                current_permissions = self.resolve_permissions(scope_id)
+                current_permissions = self.resolve_permissions()
                 #
-                if any(has_permission(current_permissions, perm) for perm in permissions):
+                if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
                 #
                 return self.access_denied_reply()
@@ -440,11 +447,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
+                current_permissions = self.resolve_permissions(mode='administration')
                 #
-                current_permissions = self.resolve_permissions(scope_id)
-
-                #
-                if any(has_permission(current_permissions, perm) for perm in permissions):
+                log.info(f"from check_api {current_permissions=} {permissions=}")
+                if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
                 #
                 return access_denied_reply, 403
@@ -460,7 +466,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     ):
         """ Check access to slot """
         self._update_local_permissions(permissions)
-        log.info(f"from slots: {self.local_permissions=}")
 
         #
         def _decorator(func):
@@ -470,10 +475,11 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 state = _args[-1]
                 #
                 current_permissions = self.resolve_permissions(
-                    scope_id, auth_data=state.auth
+                    mode='administration', auth_data=state.auth
                 )
+                log.info(f"{current_permissions=} {permissions=} {state.auth=}")
                 #
-                if any(has_permission(current_permissions, perm) for perm in permissions):
+                if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
                 #
                 return access_denied_reply, 403
@@ -502,15 +508,19 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Tools: current
     #
 
-    def resolve_permissions(self, scope_id: int = 1, auth_data=None):
+    def resolve_permissions(self, mode: str = 'administration', auth_data=None):
         """ Resolve current permissions """
         if auth_data is None:
             auth_data = flask.g.auth
         #
+        log.info(f"{auth_data=}")
         if auth_data.type == "user":
-            return self.get_user_permissions(auth_data.id, scope_id)
+            permissions = {item['permission'] for item in
+                           self.get_user_roles(auth_data.id, mode=mode)}
+            log.info(f"{permissions=}")
+            return permissions
         elif auth_data.type == "token":
-            return self.get_token_permissions(auth_data.id, scope_id)
+            return self.get_token_permissions(auth_data.id, 1)
         else:
             # Public: no permissions
             return list()
