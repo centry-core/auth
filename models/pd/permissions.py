@@ -10,7 +10,7 @@ class ModeRoles(BaseModel):
 class RecommendedRoles(BaseModel):
     administration: ModeRoles = ModeRoles()
     project: ModeRoles = ModeRoles()
-    develop: ModeRoles = ModeRoles()
+    developer: ModeRoles = ModeRoles()
 
 
 class Permissions(BaseModel):
