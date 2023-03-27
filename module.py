@@ -421,6 +421,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
                 #
+                mode = flask.g.theme.active_mode
+                log.info(f"decorator check{mode=}")
                 current_permissions = self.resolve_permissions()
                 #
                 if has_access(current_permissions, permissions):
@@ -447,9 +449,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
-                current_permissions = self.resolve_permissions(mode='administration')
+                try:
+                    log.info(f"{_args[0].mode=}")
+                    mode = _kvargs.get("mode", _args[0].mode)
+                except AttributeError:
+                    mode = "default"
+
+                current_permissions = self.resolve_permissions(mode=mode)
                 #
-                log.info(f"from check_api {current_permissions=} {permissions=}")
+                log.info(
+                    f"from check_api {mode=} {current_permissions=} {permissions=}")
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
                 #
@@ -474,8 +483,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kvargs):
                 state = _args[-1]
                 #
+                mode = flask.g.theme.active_mode
+                mode = "project" if mode == "default" else mode
+
+                log.info(f"decorator check slot {mode=}")
                 current_permissions = self.resolve_permissions(
-                    mode='administration', auth_data=state.auth
+                    mode=mode, auth_data=state.auth
                 )
                 log.info(f"{current_permissions=} {permissions=} {state.auth=}")
                 #
@@ -513,11 +526,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         if auth_data is None:
             auth_data = flask.g.auth
         #
-        log.info(f"{auth_data=}")
+        log.info(f"{flask.g.theme.active_mode=}")
         if auth_data.type == "user":
             permissions = {item['permission'] for item in
                            self.get_user_roles(auth_data.id, mode=mode)}
-            log.info(f"{permissions=}")
             return permissions
         elif auth_data.type == "token":
             return self.get_token_permissions(auth_data.id, 1)
