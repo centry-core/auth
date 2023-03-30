@@ -71,31 +71,18 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
     return generate_permissions(permission_dict)
 
 
-def has_permission(user_permissions, required_permission):
-    if ("global_admin" in user_permissions) or not user_permissions:
-        return True
-    if ("global_admin" in required_permission) or not required_permission:
-        return True  # TODO: Placeholder for testing. Remove after it
-    required_permission_parts = required_permission.split(".")
-    for permission in user_permissions:
-        permission_parts = permission.split(".")
-        if len(permission_parts) > len(required_permission_parts):
-            permission_parts = permission_parts[:len(required_permission_parts)]
-        if all(
-                permission_parts[i] == required_permission_parts[i]
-                for i in range(len(permission_parts))
-        ):
-            return True
-    return False
-
-
 def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
+    log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
+
+    if "global_admin" in required_permissions or "global_admin" in user_permissions:
+        return True  # TODO: For testing. Remove after it
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
-    if not required_permissions:
+    if not user_permissions or not required_permissions:
         return True
-    return any(has_permission(user_permissions, perm) for perm in required_permissions)
+
+    return set(required_permissions).issubset(set(user_permissions))
 
 
 class Module(module.ModuleModel):  # pylint: disable=R0902
@@ -355,7 +342,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _decorator_sio_check(self, permissions: list, scope_id: int = 1):
         """ SIO: on event """
-        self._update_local_permissions(permissions)
+        self.update_local_permissions(permissions)
 
         #
         def _decorator(func):
@@ -379,23 +366,21 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         return _decorator
 
-    def _update_local_permissions(self, permissions: list):
+    def update_local_permissions(self, permissions: list | dict):
         """ Update local permissions """
 
         log.info(f"{permissions=}")
-        if isinstance(permissions, dict):
-            self._create_template_permissions(permissions)
+        if not isinstance(permissions, dict):
+            permissions = {"permissions": permissions}
 
-        if isinstance(permissions, list):
-            for perm in permissions:
-                if isinstance(perm, str):
-                    self.local_permissions.update(generate_permissions_from_string(perm))
-        if isinstance(permissions, str):
-            self.local_permissions.update(generate_permissions_from_string(permissions))
+        self._create_template_permissions(permissions)
 
     def _create_template_permissions(self, permissions: dict):
         result = []
         perm_obj = Permissions.parse_obj(permissions)
+        log.info(f"{perm_obj=}")
+        if not perm_obj.permissions:
+            return
         extended_permissions = set()
         for permission in perm_obj.permissions:
             extended_permissions.update(generate_permissions_from_string(permission))
@@ -405,7 +390,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 for role, value in roles.items():
                     if value:
                         result.append((role, mode, perm))
-        log.info(f"{result=}")
         self.insert_permissions(result)
 
     #
@@ -414,7 +398,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _decorator_check(self, permissions: list, scope_id: int = 1):
         """ Check access to route """
-        self._update_local_permissions(permissions)
+        self.update_local_permissions(permissions)
 
         def _decorator(func):
             #
@@ -443,7 +427,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             **kwargs
     ):
         """ Check access to API """
-        self._update_local_permissions(permissions)
+        self.update_local_permissions(permissions)
 
         def _decorator(func):
             #
@@ -474,7 +458,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             self, permissions: list, scope_id: int = 1, access_denied_reply=None,
     ):
         """ Check access to slot """
-        self._update_local_permissions(permissions)
+        self.update_local_permissions(permissions)
 
         #
         def _decorator(func):
