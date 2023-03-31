@@ -378,18 +378,15 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def _create_template_permissions(self, permissions: dict):
         result = []
         perm_obj = Permissions.parse_obj(permissions)
-        log.info(f"{perm_obj=}")
         if not perm_obj.permissions:
             return
-        extended_permissions = set()
-        for permission in perm_obj.permissions:
-            extended_permissions.update(generate_permissions_from_string(permission))
-        for perm in extended_permissions:
-            self.local_permissions.add(perm)
+        for perm in perm_obj.permissions:
             for mode, roles in perm_obj.recommended_roles.dict().items():
                 for role, value in roles.items():
                     if value:
                         result.append((role, mode, perm))
+            self.local_permissions.update(generate_permissions_from_string(perm))
+
         self.insert_permissions(result)
 
     #
