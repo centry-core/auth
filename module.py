@@ -29,6 +29,8 @@ from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
 
 from .models.pd.permissions import Permissions
 
+PROJECT_ROLE_NAME = 'default'
+
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
     actions = {'edit', 'create', 'delete', 'view'}
@@ -74,8 +76,6 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
     log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
 
-    if "global_admin" in required_permissions or "global_admin" in user_permissions:
-        return True  # TODO: For testing. Remove after it
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
@@ -403,7 +403,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kvargs):
                 #
                 mode = flask.g.theme.active_mode
-                log.info(f"decorator check{mode=}")
                 current_permissions = self.resolve_permissions()
                 #
                 if has_access(current_permissions, permissions):
@@ -436,6 +435,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 except AttributeError:
                     mode = "default"
 
+                project_permissions = self.context.rpc_manager.call.get_permissions_in_project(
+                    2, flask.g.auth.id)
+
+                log.info(f"{_args=} {_kvargs=} {project_permissions=}")
                 current_permissions = self.resolve_permissions(mode=mode)
                 #
                 log.info(
@@ -467,11 +470,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 mode = flask.g.theme.active_mode
                 mode = "project" if mode == "default" else mode
 
-                log.info(f"decorator check slot {mode=}")
                 current_permissions = self.resolve_permissions(
                     mode=mode, auth_data=state.auth
                 )
-                log.info(f"{current_permissions=} {permissions=} {state.auth=}")
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
@@ -507,10 +508,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         if auth_data is None:
             auth_data = flask.g.auth
         #
-        log.info(f"{flask.g.theme.active_mode=}")
+        project_id = self.context.rpc_manager.call.project_get_id()
+
+        log.info(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
         if auth_data.type == "user":
-            permissions = {item['permission'] for item in
-                           self.get_user_roles(auth_data.id, mode=mode)}
+            if mode == PROJECT_ROLE_NAME:
+                permissions = self.context.rpc_manager.call.get_permissions_in_project(
+                    project_id, auth_data.id)
+            else:
+                permissions = {item['permission'] for item in
+                               self.get_user_roles(auth_data.id, mode=mode)}
             return permissions
         elif auth_data.type == "token":
             return self.get_token_permissions(auth_data.id, 1)
