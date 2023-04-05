@@ -435,10 +435,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 except AttributeError:
                     mode = "default"
 
-                project_permissions = self.context.rpc_manager.call.get_permissions_in_project(
-                    2, flask.g.auth.id)
-
-                log.info(f"{_args=} {_kvargs=} {project_permissions=}")
                 current_permissions = self.resolve_permissions(mode=mode)
                 #
                 log.info(
