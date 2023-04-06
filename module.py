@@ -72,7 +72,7 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
-    log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
+    # log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
 
     if "global_admin" in required_permissions or "global_admin" in user_permissions:
         return True  # TODO: For testing. Remove after it
@@ -369,7 +369,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def update_local_permissions(self, permissions: list | dict):
         """ Update local permissions """
 
-        log.info(f"{permissions=}")
+        # log.info(f"{permissions=}")
         if not isinstance(permissions, dict):
             permissions = {"permissions": permissions}
 
@@ -471,7 +471,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 current_permissions = self.resolve_permissions(
                     mode=mode, auth_data=state.auth
                 )
-                log.info(f"{current_permissions=} {permissions=} {state.auth=}")
+                # log.info(f"{current_permissions=} {permissions=} {state.auth=}")
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
