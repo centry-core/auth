@@ -508,7 +508,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
         log.info(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
         if auth_data.type == "user":
-            if mode == PROJECT_ROLE_NAME:
+            if mode == PROJECT_ROLE_NAME and project_id:
                 permissions = self.context.rpc_manager.call.get_permissions_in_project(
                     project_id, auth_data.id)
             else:
