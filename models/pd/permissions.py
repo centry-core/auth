@@ -9,7 +9,6 @@ class ModeRoles(BaseModel):
 
 class RecommendedRoles(BaseModel):
     administration: ModeRoles = ModeRoles()
-    project: ModeRoles = ModeRoles()
     developer: ModeRoles = ModeRoles()
     default: ModeRoles = ModeRoles()
 

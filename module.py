@@ -29,8 +29,6 @@ from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
 
 from .models.pd.permissions import Permissions
 
-PROJECT_ROLE_NAME = 'default'
-
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
     actions = {'edit', 'create', 'delete', 'view'}
@@ -74,12 +72,11 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
-    # log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
-
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
-    if not user_permissions or not required_permissions:
+    log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
+    if not required_permissions:
         return True
 
     return set(required_permissions).issubset(set(user_permissions))
@@ -464,7 +461,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 state = _args[-1]
                 #
                 mode = flask.g.theme.active_mode
-                mode = "project" if mode == "default" else mode
 
                 current_permissions = self.resolve_permissions(
                     mode=mode, auth_data=state.auth
@@ -505,10 +501,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             auth_data = flask.g.auth
         #
         project_id = self.context.rpc_manager.call.project_get_id()
-
         log.info(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
         if auth_data.type == "user":
-            if mode == PROJECT_ROLE_NAME and project_id:
+            if mode == 'default' and project_id:
                 permissions = self.context.rpc_manager.call.get_permissions_in_project(
                     project_id, auth_data.id)
             else:
