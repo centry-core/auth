@@ -74,7 +74,7 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
-    log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
+    # log.info(f"Check that {user_permissions=} has access to {required_permissions=}")
 
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
@@ -369,7 +369,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def update_local_permissions(self, permissions: list | dict):
         """ Update local permissions """
 
-        log.info(f"{permissions=}")
+        # log.info(f"{permissions=}")
         if not isinstance(permissions, dict):
             permissions = {"permissions": permissions}
 
