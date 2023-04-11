@@ -123,6 +123,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["remove_public_rule", "auth_remove_public_rule"],
             #
             ["add_user", "auth_add_user"],
+            ["update_user", "auth_update_user"],
             ["delete_user", "auth_delete_user"],
             ["get_user", "auth_get_user"],
             ["list_users", "auth_list_users"],
