@@ -31,7 +31,8 @@ from .models.pd.permissions import Permissions
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
-    actions = {'edit', 'create', 'delete', 'view'}
+    # actions = {'edit', 'create', 'delete', 'view'}
+    actions = set()
     if user_action := permission_dict.pop('action', None):
         actions.add(user_action)
     result = set()
@@ -40,10 +41,11 @@ def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
         if not scope:
             break
         parent += scope
-        result.add(parent)
-        if scope_name == 'subscetion':
+        if scope_name == 'item':
             for action in actions:
                 result.add(parent + '.' + action)
+        else:
+            result.add(parent)
         parent += '.'
 
     return result
@@ -58,9 +60,9 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
     :return: generated list of permissions.
     """
     permission_dict = {
-        'scope': None,
         'section': None,
-        'subscetion': None,
+        'subsection': None,
+        'item': None,
         'action': None
     }
     permissions = permission_string.split('.')
@@ -79,7 +81,7 @@ def has_access(user_permissions: list, required_permissions: list | dict) -> boo
     if not required_permissions:
         return True
 
-    return set(required_permissions).issubset(set(user_permissions))
+    return bool(set(required_permissions).intersection(set(user_permissions)))
 
 
 class Module(module.ModuleModel):  # pylint: disable=R0902
@@ -201,7 +203,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         """ Init module """
         log.info("Initializing module")
         # Add decorators
-        self.decorators.check = self._decorator_check
         self.decorators.check_api = self._decorator_check_api
         self.decorators.check_slot = self._decorator_check_slot
         #
@@ -367,7 +368,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def update_local_permissions(self, permissions: list | dict):
         """ Update local permissions """
 
-        # log.info(f"{permissions=}")
         if not isinstance(permissions, dict):
             permissions = {"permissions": permissions}
 
@@ -384,40 +384,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                     if value:
                         result.append((role, mode, perm))
             self.local_permissions.update(generate_permissions_from_string(perm))
-        if not result:
-            return
-        self.insert_permissions(result)
+
+        if result:
+            self.insert_permissions(result)
 
     #
     # Decorators
     #
 
-    def _decorator_check(self, permissions: list, scope_id: int = 1):
-        """ Check access to route """
-        self.update_local_permissions(permissions)
-
-        def _decorator(func):
-            #
-            @functools.wraps(func)
-            def _decorated(*_args, **_kvargs):
-                #
-                mode = flask.g.theme.active_mode
-                current_permissions = self.resolve_permissions()
-                #
-                if has_access(current_permissions, permissions):
-                    return func(*_args, **_kvargs)
-                #
-                return self.access_denied_reply()
-                #
-
-            #
-            return _decorated
-
-        #
-        return _decorator
-
     def _decorator_check_api(
-            self, permissions: list, scope_id: int = 1,
+            self, permissions: list | dict,
             access_denied_reply={"ok": False, "error": "access_denied"},
             **kwargs
     ):
@@ -450,7 +426,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         return _decorator
 
     def _decorator_check_slot(
-            self, permissions: list, scope_id: int = 1, access_denied_reply=None,
+            self, permissions: list | dict, access_denied_reply="",
     ):
         """ Check access to slot """
         self.update_local_permissions(permissions)
@@ -462,11 +438,13 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kvargs):
                 state = _args[-1]
                 #
-                mode = flask.g.theme.active_mode
+                try:
+                    mode = flask.g.theme.active_mode
+                except AttributeError:
+                    mode = "default"
+                log.info(f"from check_slot {state=} {_args=} {_kvargs=} {permissions=}")
 
-                current_permissions = self.resolve_permissions(
-                    mode=mode, auth_data=state.auth
-                )
+                current_permissions = self.resolve_permissions(mode=mode)
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
