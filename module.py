@@ -438,13 +438,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kvargs):
                 state = _args[-1]
                 #
-                try:
-                    mode = flask.g.theme.active_mode
-                except AttributeError:
-                    mode = "default"
-                log.info(f"from check_slot {state=} {_args=} {_kvargs=} {permissions=}")
+                mode = flask.g.theme.active_mode
 
-                current_permissions = self.resolve_permissions(mode=mode)
+                current_permissions = self.resolve_permissions(
+                    mode=mode, auth_data=state.auth
+                )
+                log.info("from check_slot %s %s %s", mode, current_permissions, permissions)
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
