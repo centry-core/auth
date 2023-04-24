@@ -2,9 +2,9 @@ from pydantic import BaseModel
 
 
 class ModeRoles(BaseModel):
-    admin: bool = True
-    editor: bool = True
-    viewer: bool = True
+    admin: bool = False
+    editor: bool = False
+    viewer: bool = False
 
 
 class RecommendedRoles(BaseModel):
