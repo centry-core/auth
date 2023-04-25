@@ -28,12 +28,6 @@ class API(Resource):
             1, auth_data=g.auth
         )
         #
-        for permission in current_permissions:
-            try:
-                auth.add_token_permission(token_id, 1, permission)
-            except:  # pylint: disable=W0702
-                pass
-        #
         token = auth.encode_token(token_id)
         log.warning('Token for user %s : %s', user_id, token)
         return make_response(token, 200)

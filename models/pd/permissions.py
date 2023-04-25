@@ -2,7 +2,8 @@ from pydantic import BaseModel
 
 
 class ModeRoles(BaseModel):
-    admin: bool = False
+    system: bool = True
+    admin: bool = True
     editor: bool = False
     viewer: bool = False
 
