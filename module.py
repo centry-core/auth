@@ -174,13 +174,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["encode_token", "auth_encode_token"],
             ["decode_token", "auth_decode_token"],
             #
-            ["assign_role_to_token", "auth_assign_role_to_token"],
-            ["unassign_role_from_token", "auth_unassign_role_from_token"],
-            ["add_token_permission", "auth_add_token_permission"],
-            ["remove_token_permission", "auth_remove_token_permission"],
             ["get_token_permissions", "auth_get_token_permissions"],
-            ["list_token_permissions", "auth_list_token_permissions"],
-            ["resolve_token_permissions", "auth_resolve_token_permissions"],
             #
             ["get_roles", "auth_get_roles"],
             ["get_permissions", "auth_get_permissions"],
@@ -489,7 +483,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 permissions = self.get_user_permissions(auth_data.id, mode=mode)
             return permissions
         elif auth_data.type == "token":
-            return self.get_token_permissions(auth_data.id, 1)
+            return self.get_token_permissions(auth_data.id)
         else:
             # Public: no permissions
             return list()
