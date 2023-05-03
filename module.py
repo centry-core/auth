@@ -494,10 +494,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             auth_data = flask.g.auth
         #
         if auth_data.type == "user":
-            return self.get_user(id=auth_data.id)
+            return self.get_user(auth_data.id)
         elif auth_data.type == "token":
-            token = self.get_token(id=auth_data.id)
-            return self.get_user(id=token["user_id"])
+            token = self.get_token(auth_data.id)
+            return self.get_user(token["user_id"])
         else:
             # Public
             return {
