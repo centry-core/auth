@@ -401,9 +401,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
                 try:
-                    log.info(f"{_args[0].mode=}")
-                    mode = _kvargs.get("mode", _args[0].mode)
-                except AttributeError:
+                    mode = _kvargs.get("mode") or _args[0].mode
+                except (AttributeError, IndexError):
                     mode = "default"
 
                 current_permissions = self.resolve_permissions(mode=mode)
