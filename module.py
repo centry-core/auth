@@ -28,6 +28,7 @@ from pylon.core.tools import module  # pylint: disable=E0401
 from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
 
 from .models.pd.permissions import Permissions
+from tools import constants as c
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
@@ -429,12 +430,18 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
-                state = _args[-1]
+                # log.info('S State %s | %s', _args, _kvargs)
+                context = _args[-1]  # need to get Context object
+                if not isinstance(context, Holder):
+                    return func(*_args, **_kvargs)
                 #
-                mode = flask.g.theme.active_mode
+                try:
+                    mode = flask.g.theme.active_mode
+                except AttributeError:
+                    mode = c.DEFAULT_MODE
 
                 current_permissions = self.resolve_permissions(
-                    mode=mode, auth_data=state.auth
+                    mode=mode, auth_data=context.auth
                 )
                 log.info("from check_slot %s %s %s", mode, current_permissions, permissions)
                 #
