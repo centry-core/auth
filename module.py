@@ -443,7 +443,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 current_permissions = self.resolve_permissions(
                     mode=mode, auth_data=context.auth
                 )
-                log.info("from check_slot %s %s %s", mode, current_permissions, permissions)
+                log.debug("from check_slot %s %s %s", mode, current_permissions, permissions)
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
@@ -480,7 +480,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             auth_data = flask.g.auth
         #
         project_id = self.context.rpc_manager.call.project_get_id()
-        log.info(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
+        log.debug(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
         if auth_data.type == "user":
             if mode == 'default' and project_id:
                 permissions = self.context.rpc_manager.call.get_permissions_in_project(
