@@ -19,6 +19,7 @@
 
 import time
 import functools
+from typing import Optional
 
 import flask  # pylint: disable=E0401
 import cachetools  # pylint: disable=E0401
@@ -474,12 +475,13 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Tools: current
     #
 
-    def resolve_permissions(self, mode: str = 'administration', auth_data=None):
+    def resolve_permissions(self, mode: str = 'administration', auth_data=None, project_id: Optional[int] = None):
         """ Resolve current permissions """
         if auth_data is None:
             auth_data = flask.g.auth
-        #
-        project_id = self.context.rpc_manager.call.project_get_id()
+
+        if not project_id:
+            project_id = self.context.rpc_manager.call.project_get_id()
         log.debug(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
         if auth_data.type == "user":
             if mode == 'default' and project_id:
