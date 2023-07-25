@@ -75,7 +75,7 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
     return generate_permissions(permission_dict)
 
 
-def has_access(user_permissions: list, required_permissions: list | dict) -> bool:
+def has_access(user_permissions: set, required_permissions: list | dict) -> bool:
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
@@ -222,6 +222,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Add hooks
         self.context.app.before_request(self._before_request_hook)
         # Enable cache
+        ## TODO: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
             cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_user_permissions)
@@ -399,25 +400,29 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.update_local_permissions(permissions)
 
         def _decorator(func):
-            #
             @functools.wraps(func)
-            def _decorated(*_args, **_kvargs):
+            def _decorated(*_args, **_kwargs):
                 try:
-                    mode = _kvargs.get("mode") or _args[0].mode
+                    mode = _kwargs.get("mode") or _args[0].mode
                 except (AttributeError, IndexError):
                     mode = "default"
+                try:
+                    project_id = _kwargs.get('project_id') or _args[0].project_id
+                except (AttributeError, IndexError):
+                    project_id = None
 
-                current_permissions = self.resolve_permissions(mode=mode)
-                #
+                # log.info('CHECK API %s', _args)
+                # log.info('CHECK API %s', _kwargs)
+                # log.info('CHECK API %s %s', mode, project_id)
+
+                current_permissions = self.resolve_permissions(
+                    mode=mode,
+                    project_id=project_id
+                )
                 if has_access(current_permissions, permissions):
-                    return func(*_args, **_kvargs)
-                #
+                    return func(*_args, **_kwargs)
                 return access_denied_reply, 403
-
-            #
             return _decorated
-
-        #
         return _decorator
 
     def _decorator_check_slot(
@@ -431,7 +436,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             @functools.wraps(func)
             def _decorated(*_args, **_kvargs):
-                # log.info('S State %s | %s', _args, _kvargs)
+                # log.info('check_slot State %s | %s', _args, _kvargs)
                 context = _args[-1]  # need to get Context object
                 if not isinstance(context, Holder):
                     return func(*_args, **_kvargs)
@@ -475,26 +480,23 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Tools: current
     #
 
-    def resolve_permissions(self, mode: str = 'administration', auth_data=None, project_id: Optional[int] = None):
+    def resolve_permissions(self, mode: str = 'administration', auth_data=None,
+                            project_id: Optional[int] = None) -> set:
         """ Resolve current permissions """
         if auth_data is None:
             auth_data = flask.g.auth
 
         if not project_id:
             project_id = self.context.rpc_manager.call.project_get_id()
-        log.debug(f"resolve permissions {flask.g.theme.active_mode=} {mode=} {project_id=}")
+
+        # log.info('resolve_permissions mode %s | auth_data %s | project_id %s', mode, auth_data.__dict__, project_id)
         if auth_data.type == "user":
-            if mode == 'default' and project_id:
-                permissions = self.context.rpc_manager.call.get_permissions_in_project(
-                    project_id, auth_data.id)
-            else:
-                permissions = self.get_user_permissions(auth_data.id, mode=mode)
-            return permissions
+            return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
         elif auth_data.type == "token":
-            return self.get_token_permissions(auth_data.id)
+            return self.get_token_permissions(auth_data.id, mode=mode, project_id=project_id)
         else:
             # Public: no permissions
-            return list()
+            return set()
 
     def current_user(self, auth_data=None):
         """ Get current user """
