@@ -23,6 +23,7 @@ from typing import Optional
 
 import flask  # pylint: disable=E0401
 import cachetools  # pylint: disable=E0401
+import pygeoip  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0401
@@ -216,7 +217,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 self, proxy_name,
                 getattr(self.context.rpc_manager.call, rpc_name)
             )
-        self.has_access = has_access
+        self.has_access = has_access  # pylint: disable=W0201
         # Register auth tool
         self.descriptor.register_tool("auth", self)
         # Add hooks
@@ -235,11 +236,14 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.get_token = cachetools.cached(  # pylint: disable=W0201
             cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_token)
-
+        # Load GeoIP databases
+        self.geoip = pygeoip.GeoIP("/usr/share/GeoIP/GeoIP.dat")  # pylint: disable=W0201
+        # self.geoip6 = pygeoip.GeoIP("/usr/share/GeoIP/GeoIPv6.dat")  # pylint: disable=W0201
+        # Debug
         if self.context.debug:
             self.descriptor.init_api()
-
-        log.info("Running DB migrations")
+        #
+        # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
 
     def deinit(self):  # pylint: disable=R0201
@@ -275,7 +279,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Hooks
     #
 
-    def _before_request_hook(self):  # pylint: disable=R0201
+    def _before_request_hook(self):
         flask.g.auth = Holder()
         #
         flask.g.auth.type = flask.request.headers.get("X-Auth-Type", "public")
@@ -286,8 +290,29 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         try:
             flask.g.auth.id = int(flask.g.auth.id)
-        except:
+        except:  # pylint: disable=W0702
             flask.g.auth.id = "-"
+        #
+        flask.g.visitor = Holder()
+        #
+        flask.g.visitor.ip = flask.request.remote_addr
+        flask.g.visitor.masked_ip = ".".join(str(flask.g.visitor.ip).split(".")[:-1] + ["xx"])
+        #
+        flask.g.visitor.country_code = self.geoip.country_code_by_addr(flask.g.visitor.ip)
+        flask.g.visitor.country_name = self.geoip.country_name_by_addr(flask.g.visitor.ip)
+        #
+        self.context.event_manager.fire_event(
+            "auth_visitor",
+            {
+                "type": flask.g.auth.type,
+                "id": flask.g.auth.id,
+                "reference": flask.g.auth.reference,
+                "ip": flask.g.visitor.ip,
+                "masked_ip": flask.g.visitor.masked_ip,
+                "country_code": flask.g.visitor.country_code,
+                "country_name": flask.g.visitor.country_name,
+            },
+        )
 
     #
     # Decorators
