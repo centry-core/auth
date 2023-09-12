@@ -298,8 +298,15 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         flask.g.visitor.ip = flask.request.remote_addr
         flask.g.visitor.masked_ip = ".".join(str(flask.g.visitor.ip).split(".")[:-1] + ["xx"])
         #
-        flask.g.visitor.country_code = self.geoip.country_code_by_addr(flask.g.visitor.ip)
-        flask.g.visitor.country_name = self.geoip.country_name_by_addr(flask.g.visitor.ip)
+        try:
+            flask.g.visitor.country_code = self.geoip.country_code_by_addr(flask.g.visitor.ip)
+        except:  # pylint: disable=W0702
+            flask.g.visitor.country_code = ""
+        #
+        try:
+            flask.g.visitor.country_name = self.geoip.country_name_by_addr(flask.g.visitor.ip)
+        except:  # pylint: disable=W0702
+            flask.g.visitor.country_name = ""
         #
         self.context.event_manager.fire_event(
             "auth_visitor",
