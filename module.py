@@ -237,8 +237,15 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_token)
         # Load GeoIP databases
-        self.geoip = pygeoip.GeoIP("/usr/share/GeoIP/GeoIP.dat")  # pylint: disable=W0201
-        # self.geoip6 = pygeoip.GeoIP("/usr/share/GeoIP/GeoIPv6.dat")  # pylint: disable=W0201
+        try:
+            self.geoip = pygeoip.GeoIP("/usr/share/GeoIP/GeoIP.dat")  # pylint: disable=W0201
+        except:  # pylint: disable=W0702
+            self.geoip = None  # pylint: disable=W0201
+        #
+        # try:
+        #     self.geoip6 = pygeoip.GeoIP("/usr/share/GeoIP/GeoIPv6.dat")  # pylint: disable=W0201
+        # except:  # pylint: disable=W0702
+        #     self.geoip6 = None  # pylint: disable=W0201
         # Debug
         if self.context.debug:
             self.descriptor.init_api()
