@@ -327,6 +327,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 "country_name": flask.g.visitor.country_name,
             },
         )
+        #
+        log.info("Visitor: %s", {
+            "type": flask.g.auth.type,
+            "id": flask.g.auth.id,
+            "reference": flask.g.auth.reference,
+            "ip": flask.g.visitor.ip,
+            "masked_ip": flask.g.visitor.masked_ip,
+            "country_code": flask.g.visitor.country_code,
+            "country_name": flask.g.visitor.country_name,
+        })
 
     #
     # Decorators
