@@ -202,6 +202,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         """ Init module """
         log.info("Initializing module")
         # Add decorators
+        self.decorators.check = self._decorator_check
         self.decorators.check_api = self._decorator_check_api
         self.decorators.check_slot = self._decorator_check_slot
         #
@@ -432,6 +433,28 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     #
     # Decorators
     #
+
+    def _decorator_check(
+            self, permissions: list | dict,
+            access_denied_reply={"ok": False, "error": "access_denied"},
+            **kwargs
+    ):
+        """ Check access to route """
+        self.update_local_permissions(permissions)
+
+        def _decorator(func):
+            @functools.wraps(func)
+            def _decorated(*_args, **_kwargs):
+                #
+                # TBD: correct mode support
+                current_permissions = self.resolve_permissions()
+                #
+                if has_access(current_permissions, permissions):
+                    return func(*_args, **_kwargs)
+                #
+                return access_denied_reply, 403
+            return _decorated
+        return _decorator
 
     def _decorator_check_api(
             self, permissions: list | dict,
