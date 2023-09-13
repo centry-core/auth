@@ -315,20 +315,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         except:  # pylint: disable=W0702
             flask.g.visitor.country_name = ""
         #
-        self.context.event_manager.fire_event(
-            "auth_visitor",
-            {
-                "type": flask.g.auth.type,
-                "id": flask.g.auth.id,
-                "reference": flask.g.auth.reference,
-                "ip": flask.g.visitor.ip,
-                "masked_ip": flask.g.visitor.masked_ip,
-                "country_code": flask.g.visitor.country_code,
-                "country_name": flask.g.visitor.country_name,
-            },
-        )
-        #
-        log.info("Visitor: %s", {
+        visitor_event = {
             "type": flask.g.auth.type,
             "id": flask.g.auth.id,
             "reference": flask.g.auth.reference,
@@ -336,7 +323,13 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             "masked_ip": flask.g.visitor.masked_ip,
             "country_code": flask.g.visitor.country_code,
             "country_name": flask.g.visitor.country_name,
-        })
+        }
+        #
+        self.context.event_manager.fire_event(
+            "auth_visitor", visitor_event,
+        )
+        #
+        log.info("Visitor: %s", visitor_event)
 
     #
     # Decorators
