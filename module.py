@@ -437,6 +437,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def _decorator_check(
             self, permissions: list | dict,
             access_denied_reply={"ok": False, "error": "access_denied"},
+            mode="default",
             **kwargs
     ):
         """ Check access to route """
@@ -447,7 +448,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             def _decorated(*_args, **_kwargs):
                 #
                 # TBD: correct mode support
-                current_permissions = self.resolve_permissions()
+                current_permissions = self.resolve_permissions(mode=mode)
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kwargs)
