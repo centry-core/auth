@@ -469,11 +469,11 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             @functools.wraps(func)
             def _decorated(*_args, **_kwargs):
                 try:
-                    mode = _kwargs.get("mode") or _args[0].mode
+                    mode = kwargs.get("mode") or _kwargs.get("mode") or _args[0].mode
                 except (AttributeError, IndexError):
                     mode = "default"
                 try:
-                    project_id = _kwargs.get('project_id') or _args[0].project_id
+                    project_id = kwargs.get("project_id") or _kwargs.get('project_id') or _args[0].project_id
                 except (AttributeError, IndexError):
                     project_id = None
 
