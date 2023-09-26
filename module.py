@@ -30,7 +30,12 @@ from pylon.core.tools import module  # pylint: disable=E0401
 from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
 
 from .models.pd.permissions import Permissions
-from tools import constants as c
+
+try:
+    from tools import constants as c  # pylint: disable=E0401
+except:  # pylint: disable=W0702
+    c = Holder()
+    c.DEFAULT_MODE = "default"
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
