@@ -22,6 +22,8 @@ import functools
 from typing import Optional
 
 import flask  # pylint: disable=E0401
+from flask import request, make_response
+
 import cachetools  # pylint: disable=E0401
 import pygeoip  # pylint: disable=E0401
 
@@ -36,6 +38,7 @@ try:
 except:  # pylint: disable=W0702
     c = Holder()
     c.DEFAULT_MODE = "default"
+    c.ALLOW_CORS = False
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
@@ -228,6 +231,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.descriptor.register_tool("auth", self)
         # Add hooks
         self.context.app.before_request(self._before_request_hook)
+        if c.ALLOW_CORS:
+            self.context.app.after_request(self.cors_after_request)
         # Enable cache
         ## TODO: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
@@ -253,11 +258,23 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # except:  # pylint: disable=W0702
         #     self.geoip6 = None  # pylint: disable=W0201
         # Debug
-        if self.context.debug:
-            self.descriptor.init_api()
+        # if self.context.debug:
+        self.descriptor.init_api()
         #
         # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
+
+    def cors_after_request(self, response):
+        if request.method == 'OPTIONS':
+            response = make_response()
+            response.status_code = 200
+            response.headers.add('Access-Control-Allow-Headers', '*')
+            response.headers.add('Access-Control-Allow-Methods', '*')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        origin = request.headers.get('Origin', request.origin)
+        if origin:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+        return response
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
