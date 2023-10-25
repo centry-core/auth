@@ -88,6 +88,25 @@ def has_access(user_permissions: set, required_permissions: list | dict) -> bool
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
+    # from collections import defaultdict
+    # import json
+    # debug_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    # for i in user_permissions:
+    #     try:
+    #         s, ss, it, a = i.split('.')
+    #         debug_dict[s][ss][it].append(a)
+    #     except ValueError:
+    #         ...
+    #
+    # log.info(
+    #     '\nhas access: %s\nfound_permission:\n%s\nrequired:\n%s\nuser:\n%s\ndebug_dict:\n%s',
+    #     bool(set(required_permissions).intersection(set(user_permissions))),
+    #     set(required_permissions).intersection(set(user_permissions)),
+    #     set(required_permissions),
+    #     set(user_permissions),
+    #     json.dumps(dict(debug_dict), indent=2)
+    # )
+
     if not required_permissions:
         return True
 
@@ -271,9 +290,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             response.headers.add('Access-Control-Allow-Headers', '*')
             response.headers.add('Access-Control-Allow-Methods', '*')
             response.headers.add('Access-Control-Allow-Credentials', 'true')
-        origin = request.headers.get('Origin', request.origin)
-        if origin:
-            response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Origin', '*')
         return response
 
     def deinit(self):  # pylint: disable=R0201
