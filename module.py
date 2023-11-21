@@ -359,6 +359,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
                     source, headers, cookies
                 )
+                log.info("Auth status: %s", auth_status)
             except:  # pylint: disable=W0702
                 self._make_public_g_auth()
             else:
@@ -373,7 +374,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 elif auth_status["action"] == "redirect":
                     return flask.redirect(auth_status["target"])
                 elif auth_status["action"] == "make_response":
-                    flask.make_response(auth_status["data"], auth_status["status_code"])
+                    return flask.make_response(auth_status["data"], auth_status["status_code"])
                 else:
                     return self.access_denied_reply()
             #
