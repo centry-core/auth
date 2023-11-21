@@ -17,6 +17,7 @@
 
 """ Module """
 
+import re
 import time
 import functools
 from typing import Optional
@@ -150,9 +151,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["register_info_mapper", "auth_register_info_mapper"],
             ["unregister_info_mapper", "auth_unregister_info_mapper"],
             #
-            ["add_public_rule", "auth_add_public_rule"],
-            ["remove_public_rule", "auth_remove_public_rule"],
-            #
             ["add_user", "auth_add_user"],
             ["update_user", "auth_update_user"],
             ["delete_user", "auth_delete_user"],
@@ -220,6 +218,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # SIO auth data
         self.sio_users = dict()  # sid -> auth_data
         self.local_permissions = set()
+        #
+        self.auth_mode = "traefik"
+        self.public_rules = []  # [rule]
 
     #
     # Module
@@ -228,6 +229,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def init(self):
         """ Init module """
         log.info("Initializing module")
+        # Config
+        self.auth_mode = self.descriptor.config.get("auth_mode", self.auth_mode).lower()
         # Add decorators
         self.decorators.check = self._decorator_check
         self.decorators.check_api = self._decorator_check_api
@@ -329,11 +332,33 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     def _before_request_hook(self):
         flask.g.auth = Holder()
         #
-        flask.g.auth.type = flask.request.headers.get("X-Auth-Type", "public")
-        flask.g.auth.id = flask.request.headers.get("X-Auth-ID", "-")
-        flask.g.auth.reference = flask.request.headers.get(
-            "X-Auth-Reference", "-"
-        )
+        if self.auth_mode == "rpc":
+            # Collect data
+            source = {}
+            headers = {}
+            cookies = {}
+            # Check public rules
+            is_public_route = False
+            for rule in self.public_rules:
+                if self.public_rule_matches(rule, source):
+                    is_public_route = True
+            # Call authorize RPC
+            auth_status = self.context.rpc_manager.call.auth_authorize(
+                source, headers, cookies
+            )
+            #
+        #
+        elif self.auth_mode == "traefik":
+            flask.g.auth.type = flask.request.headers.get("X-Auth-Type", "public")
+            flask.g.auth.id = flask.request.headers.get("X-Auth-ID", "-")
+            flask.g.auth.reference = flask.request.headers.get(
+                "X-Auth-Reference", "-"
+            )
+        #
+        else:
+            flask.g.auth.type = "public"
+            flask.g.auth.id = "-"
+            flask.g.auth.reference = "-"
         #
         try:
             flask.g.auth.id = int(flask.g.auth.id)
@@ -570,6 +595,47 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     #
     # Tools
     #
+
+    #
+    # Tools: public routes
+    #
+
+    def add_public_rule(self, rule):
+        """ Public route: add """
+        if self.auth_mode == "rpc":
+            rule_obj = {}
+            for key, regex in rule.items():
+                rule_obj[key] = re.compile(regex)
+            #
+            if rule_obj not in self.public_rules:
+                self.public_rules.append(rule_obj)
+            #
+            return None
+        #
+        return self.context.rpc_manager.call.auth_add_public_rule(rule)
+
+    def remove_public_rule(self, rule):
+        """ Public route: add """
+        if self.auth_mode == "rpc":
+            rule_obj = {}
+            for key, regex in rule.items():
+                rule_obj[key] = re.compile(regex)
+            #
+            while rule_obj in self.public_rules:
+                self.public_rules.remove(rule_obj)
+            #
+            return None
+        #
+        return self.context.rpc_manager.call.auth_remove_public_rule(rule)
+
+    @staticmethod
+    def public_rule_matches(rule, source):
+        """ Apply public rule """
+        for key, obj in rule.items():
+            if not obj.fullmatch(source[key]):
+                return False
+        #
+        return True
 
     #
     # Tools: access denied
