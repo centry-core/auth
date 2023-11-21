@@ -359,7 +359,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
                     source, headers, cookies
                 )
-                log.info("Auth status: %s", auth_status)
             except:  # pylint: disable=W0702
                 self._make_public_g_auth()
             else:
