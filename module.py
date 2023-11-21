@@ -334,18 +334,48 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         if self.auth_mode == "rpc":
             # Collect data
-            source = {}
-            headers = {}
-            cookies = {}
+            source_uri = flask.request.full_path
+            if not flask.request.query_string and source_uri.endswith("?"):
+                source_uri = source_uri[:-1]
+            #
+            source = {
+                "method": flask.request.method,
+                "proto": flask.request.scheme,
+                "host": flask.request.host,
+                "uri": source_uri,
+                "ip": flask.request.remote_addr,
+                "target": "rpc",
+                "scope": None,
+            }
+            headers = dict(flask.request.headers.items())
+            cookies = dict(flask.request.cookies.items())
             # Check public rules
             is_public_route = False
             for rule in self.public_rules:
                 if self.public_rule_matches(rule, source):
                     is_public_route = True
             # Call authorize RPC
-            auth_status = self.context.rpc_manager.call.auth_authorize(
-                source, headers, cookies
-            )
+            try:
+                auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
+                    source, headers, cookies
+                )
+            except:  # pylint: disable=W0702
+                self._make_public_g_auth()
+            else:
+                if auth_status["auth_ok"]:
+                    flask.g.auth.type = auth_status["headers"].get("X-Auth-Type", "public")
+                    flask.g.auth.id = auth_status["headers"].get("X-Auth-ID", "-")
+                    flask.g.auth.reference = auth_status["headers"].get(
+                        "X-Auth-Reference", "-"
+                    )
+                elif is_public_route:
+                    self._make_public_g_auth()
+                elif auth_status["action"] == "redirect":
+                    return flask.redirect(auth_status["target"])
+                elif auth_status["action"] == "make_response":
+                    flask.make_response(auth_status["data"], auth_status["status_code"])
+                else:
+                    return self.access_denied_reply()
             #
         #
         elif self.auth_mode == "traefik":
@@ -356,9 +386,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             )
         #
         else:
-            flask.g.auth.type = "public"
-            flask.g.auth.id = "-"
-            flask.g.auth.reference = "-"
+            self._make_public_g_auth()
         #
         try:
             flask.g.auth.id = int(flask.g.auth.id)
@@ -395,6 +423,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         )
         #
         log.info("Visitor: %s", visitor_event)
+
+    @staticmethod
+    def _make_public_g_auth():
+        flask.g.auth.type = "public"
+        flask.g.auth.id = "-"
+        flask.g.auth.reference = "-"
 
     #
     # Decorators
