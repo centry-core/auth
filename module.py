@@ -707,12 +707,19 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         """ Get current user """
         if auth_data is None:
             auth_data = flask.g.auth
-        #
+
+        if hasattr(auth_data, 'user'):
+            return auth_data.user
+
         if auth_data.type == "user":
-            return self.get_user(auth_data.id)
+            user_data = self.get_user(auth_data.id)
+            flask.g.auth.user = user_data
+            return user_data
         elif auth_data.type == "token":
             token = self.get_token(auth_data.id)
-            return self.get_user(token["user_id"])
+            user_data = self.get_user(token["user_id"])
+            flask.g.auth.user = user_data
+            return user_data
         else:
             # Public
             return {
