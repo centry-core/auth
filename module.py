@@ -379,8 +379,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
         #
         elif self.auth_mode == "traefik":
-            # log.info(f'{flask.request.headers=}')
-            # log.info(f'{self.decode_token(flask.request.headers.get("Authorization"))}')
             flask.g.auth.type = flask.request.headers.get("X-Auth-Type", "public")
             flask.g.auth.id = flask.request.headers.get("X-Auth-ID", "-")
             flask.g.auth.reference = flask.request.headers.get(
@@ -577,9 +575,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 except (AttributeError, IndexError):
                     project_id = None
 
-                log.info('CHECK API %s', _args)
-                log.info('CHECK API %s', _kwargs)
-                log.info('CHECK API %s %s', mode, project_id)
+                # log.info('CHECK API %s', _args)
+                # log.info('CHECK API %s', _kwargs)
+                # log.info('CHECK API %s %s', mode, project_id)
 
                 current_permissions = self.resolve_permissions(
                     mode=mode,
@@ -696,7 +694,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         if not project_id:
             project_id = self.context.rpc_manager.call.project_get_id()
 
-        log.info('resolve_permissions mode %s | auth_data %s | project_id %s', mode, auth_data.__dict__, project_id)
+        # log.info('resolve_permissions mode %s | auth_data %s | project_id %s', mode, auth_data.__dict__, project_id)
         if auth_data.type == "user":
             return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
         elif auth_data.type == "token":
