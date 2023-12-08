@@ -695,7 +695,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             try:
                 project_id = self.context.rpc_manager.timeout(3).project_get_id()
             except:  # pylint: disable=W0702
-                return set()
+                project_id = None
 
         # log.info('resolve_permissions mode %s | auth_data %s | project_id %s', mode, auth_data.__dict__, project_id)
         if auth_data.type == "user":
