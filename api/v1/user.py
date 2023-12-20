@@ -22,4 +22,10 @@ class API(api_tools.APIBase):
             user['personal_project_id'] = project_id
         except Empty:
             ...
+        try:
+            auth_ctx = auth.get_referenced_auth_context(g.auth.reference)
+            avatar = auth_ctx['provider_attr']['attributes']['picture']
+        except (AttributeError, KeyError):
+            avatar = None
+        user['avatar'] = avatar
         return jsonify(user)
