@@ -282,6 +282,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Debug
         # if self.context.debug:
         self.descriptor.init_api()
+        self.descriptor.init_rpcs()
         #
         # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
@@ -706,28 +707,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             # Public: no permissions
             return set()
 
-    def current_user(self, auth_data=None):
-        """ Get current user """
-        if auth_data is None:
-            auth_data = flask.g.auth
 
-        if hasattr(auth_data, 'user'):
-            return auth_data.user
-
-        if auth_data.type == "user":
-            user_data = self.get_user(auth_data.id)
-            flask.g.auth.user = user_data
-            return user_data
-        elif auth_data.type == "token":
-            token = self.get_token(auth_data.id)
-            user_data = self.get_user(token["user_id"])
-            flask.g.auth.user = user_data
-            return user_data
-        else:
-            # Public
-            return {
-                "id": None, "email": "public@platform.user", "name": "Public"
-            }
 
     #
     # Tools: SIO
