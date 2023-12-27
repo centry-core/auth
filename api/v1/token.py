@@ -44,7 +44,7 @@ class API(api_tools.APIBase):
         try:
             name = request.json['name']
         except KeyError:
-            return {'error': 'Name is required'}
+            return {'error': 'Name is required'}, 400
 
         expires = request.json.get('expires')
         if expires:
@@ -52,16 +52,16 @@ class API(api_tools.APIBase):
             try:
                 assert expires['measure'] in allowed_measures
             except AssertionError:
-                return {'error': f'expires measure be in {allowed_measures}'}
+                return {'error': f'expires measure be in {allowed_measures}'}, 400
             except KeyError:
-                return {'error': f'expires must have "measure" key'}
+                return {'error': f'expires must have "measure" key'}, 400
 
             try:
                 expire_value = int(expires['value'])
             except ValueError:
-                return {'error': f'expires must be int, got {type(expires)}'}
+                return {'error': f'expires must be int, got {type(expires)}'}, 400
             except KeyError:
-                return {'error': f'expires must have "value" key'}
+                return {'error': f'expires must have "value" key'}, 400
             expires = datetime.now() + timedelta(**{expires['measure']: expire_value})
 
         token_id = auth.add_token(
