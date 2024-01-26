@@ -450,9 +450,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 sid = _args[1]
                 environ = _args[2]
                 #
-                if self.auth_mode == "rpc":
-                    log.info("SIO connect: environ: %s", environ)
-                #
                 self.sio_users[sid] = self.sio_make_auth_data(environ)
                 #
                 return func(*_args, **_kvargs)
@@ -720,14 +717,65 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         """ SIO: make auth data """
         auth_data = Holder()
         #
-        auth_data.type = environ.get("HTTP_X_AUTH_TYPE", "public")
-        auth_data.id = environ.get("HTTP_X_AUTH_ID", "-")
-        auth_data.reference = environ.get("HTTP_X_AUTH_REFERENCE", "-")
+        if self.auth_mode == "rpc":
+            # Construct request
+            req = flask.Request(environ)
+            # Collect data
+            source_uri = req.full_path
+            if not req.query_string and source_uri.endswith("?"):
+                source_uri = source_uri[:-1]
+            #
+            source = {
+                "method": req.method,
+                "proto": req.scheme,
+                "host": req.host,
+                "uri": source_uri,
+                "ip": req.remote_addr,
+                "target": "rpc",
+                "scope": None,
+            }
+            headers = dict(req.headers.items())
+            cookies = dict(req.cookies.items())
+            # Call authorize RPC
+            try:
+                auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
+                    source, headers, cookies
+                )
+            except:  # pylint: disable=W0702
+                auth_data.type = "public"
+                auth_data.id = "-"
+                auth_data.reference = "-"
+            else:
+                if auth_status["auth_ok"]:
+                    auth_data.type = auth_status["headers"].get("X-Auth-Type", "public")
+                    auth_data.id = auth_status["headers"].get("X-Auth-ID", "-")
+                    auth_data.reference = auth_status["headers"].get(
+                        "X-Auth-Reference", "-"
+                    )
+                    #
+                    try:
+                        auth_data.id = int(auth_data.id)
+                    except:  # pylint: disable=W0702
+                        auth_data.id = "-"
+                else:  # Note: may handle other cases (like 'redirect') later
+                    auth_data.type = "public"
+                    auth_data.id = "-"
+                    auth_data.reference = "-"
         #
-        try:
-            auth_data.id = int(auth_data.id)
-        except:
+        elif self.auth_mode == "traefik":
+            auth_data.type = environ.get("HTTP_X_AUTH_TYPE", "public")
+            auth_data.id = environ.get("HTTP_X_AUTH_ID", "-")
+            auth_data.reference = environ.get("HTTP_X_AUTH_REFERENCE", "-")
+            #
+            try:
+                auth_data.id = int(auth_data.id)
+            except:  # pylint: disable=W0702
+                auth_data.id = "-"
+        #
+        else:
+            auth_data.type = "public"
             auth_data.id = "-"
+            auth_data.reference = "-"
         #
         return auth_data
 
