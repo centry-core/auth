@@ -450,6 +450,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 sid = _args[1]
                 environ = _args[2]
                 #
+                if self.auth_mode == "rpc":
+                    log.info("SIO connect: environ: %s", environ)
+                #
                 self.sio_users[sid] = self.sio_make_auth_data(environ)
                 #
                 return func(*_args, **_kvargs)
