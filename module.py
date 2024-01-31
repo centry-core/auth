@@ -576,6 +576,13 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 except (AttributeError, IndexError):
                     project_id = None
 
+                if project_id is None and \
+                        kwargs.get("project_id_in_request_json", False):
+                    try:
+                        project_id = flask.request.json.get('project_id')
+                    except:  # pylint: disable=W0702
+                        project_id = None  # no change
+
                 # log.info('CHECK API %s', _args)
                 # log.info('CHECK API %s', _kwargs)
                 # log.info('CHECK API %s %s', mode, project_id)
