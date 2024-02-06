@@ -558,11 +558,19 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _decorator_check_api(
             self, permissions: list | dict,
-            access_denied_reply={"ok": False, "error": "access_denied"},
+            access_denied_reply: Optional[dict] = None,
+            add_verbose_info: bool = True,
             **kwargs
     ):
         """ Check access to API """
         self.update_local_permissions(permissions)
+        if access_denied_reply is None:
+            access_denied_reply = {"ok": False, "error": "access_denied"}
+        if add_verbose_info:
+            if isinstance(permissions, dict):
+                access_denied_reply['required'] = permissions.get('permissions', permissions)
+            else:
+                access_denied_reply['required'] = permissions
 
         def _decorator(func):
             @functools.wraps(func)
@@ -593,6 +601,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 )
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kwargs)
+                if add_verbose_info and isinstance(access_denied_reply, dict):
+                    access_denied_reply['mode'] = mode
+                    access_denied_reply['project_id'] = project_id
+                    access_denied_reply['current_permissions'] = list(current_permissions)
                 return access_denied_reply, 403
             return _decorated
         return _decorator

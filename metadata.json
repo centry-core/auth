@@ -1,5 +1,5 @@
 {
   "name": "Auth tools",
-  "version": "0.1",
+  "version": "0.2",
   "init_after": ["shared"]
 }
