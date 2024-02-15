@@ -255,6 +255,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.context.app.before_request(self._before_request_hook)
         if c.ALLOW_CORS:
             self.context.app.after_request(self.cors_after_request)
+        # Register configured public rules
+        for public_rule in self.descriptor.config.get("public_rules", []):
+            self.add_public_rule(public_rule)
         # Enable cache
         ## TODO: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
