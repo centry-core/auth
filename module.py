@@ -334,6 +334,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     #
 
     def _before_request_hook(self):
+        flask.session.permanent = True
         flask.g.auth = Holder()
         #
         if self.auth_mode == "rpc":
