@@ -747,6 +747,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             source_uri = req.full_path
             if not req.query_string and source_uri.endswith("?"):
                 source_uri = source_uri[:-1]
+            source_uri = f'{self.context.url_prefix}{source_uri}'
             #
             source = {
                 "method": req.method,
