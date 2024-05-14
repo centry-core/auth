@@ -14,12 +14,12 @@ class RPC:
 
         if auth_data.type == "user":
             user_data = self.get_user(auth_data.id)
-            flask.g.auth.user = user_data
+            auth_data.user = user_data
             return user_data
         elif auth_data.type == "token":
             token = self.get_token(auth_data.id)
             user_data = self.get_user(token["user_id"])
-            flask.g.auth.user = user_data
+            auth_data.user = user_data
             return user_data
         else:
             # Public
