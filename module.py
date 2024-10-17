@@ -240,14 +240,14 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.decorators.sio_disconnect = self._decorator_sio_disconnect
         self.decorators.sio_check = self._decorator_sio_check
         # Register RPC proxies
+        rpc_call = self.context.rpc_manager.timeout(15)
+        #
         for proxy_name, rpc_name in self._rpcs:
             if hasattr(self, proxy_name):
                 raise RuntimeError(f"Name '{proxy_name}' is already set")
             #
-            setattr(
-                self, proxy_name,
-                getattr(self.context.rpc_manager.call, rpc_name)
-            )
+            setattr(self, proxy_name, getattr(rpc_call, rpc_name))
+        #
         self.has_access = has_access  # pylint: disable=W0201
         # Register auth tool
         self.descriptor.register_tool("auth", self)
@@ -259,7 +259,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         for public_rule in self.descriptor.config.get("public_rules", []):
             self.add_public_rule(public_rule)
         # Enable cache
-        ## TODO: maybe this creates malfunctions
+        # FIXME: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
             cache=cachetools.TTLCache(maxsize=1024, ttl=60)
         )(self.get_user_permissions)
@@ -671,7 +671,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             return None
         #
-        return self.context.rpc_manager.call.auth_add_public_rule(rule)
+        return self.context.rpc_manager.timeout(15).auth_add_public_rule(rule)
 
     def remove_public_rule(self, rule):
         """ Public route: add """
@@ -685,7 +685,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             #
             return None
         #
-        return self.context.rpc_manager.call.auth_remove_public_rule(rule)
+        return self.context.rpc_manager.timeout(15).auth_remove_public_rule(rule)
 
     @staticmethod
     def public_rule_matches(rule, source):
