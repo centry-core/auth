@@ -253,8 +253,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.descriptor.register_tool("auth", self)
         # Add hooks
         self.context.app.before_request(self._before_request_hook)
-        if c.ALLOW_CORS:
-            self.context.app.after_request(self.cors_after_request)
+        self.context.app.after_request(self._after_request_hook)
         # Register configured public rules
         for public_rule in self.descriptor.config.get("public_rules", []):
             self.add_public_rule(public_rule)
@@ -290,14 +289,29 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
 
-    def cors_after_request(self, response):
-        if request.method == 'OPTIONS':
-            response = make_response()
-            response.status_code = 200
-            response.headers.add('Access-Control-Allow-Headers', '*')
-            response.headers.add('Access-Control-Allow-Methods', '*')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Origin', '*')
+    def _after_request_hook(self, response):
+        additional_headers = self.descriptor.config.get(
+            "additional_headers", {}
+        )
+        for key, value in additional_headers.items():
+            response.headers[key] = value
+        #
+        if c.ALLOW_CORS:
+            if request.method == 'OPTIONS':
+                response = make_response()
+                response.status_code = 200
+                response.headers.add('Access-Control-Allow-Headers', '*')
+                response.headers.add('Access-Control-Allow-Methods', '*')
+                response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Allow-Origin', '*')
+        #
+        additional_default_headers = self.descriptor.config.get(
+            "additional_default_headers", {}
+        )
+        for key, value in additional_default_headers.items():
+            if key not in response.headers:
+                response.headers[key] = value
+        #
         return response
 
     def deinit(self):  # pylint: disable=R0201
