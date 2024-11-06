@@ -347,8 +347,13 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Hooks
     #
 
-    def _before_request_hook(self):
+    def _before_request_hook(self):  # pylint: disable=R0912,R0915
         flask.session.permanent = True
+        #
+        if self.descriptor.config.get("force_https_redirect", False):
+            if flask.request.scheme == "http":
+                return flask.redirect(flask.request.url.replace("http://", "https://", 1))
+        #
         flask.g.auth = Holder()
         #
         if self.auth_mode == "rpc":
@@ -443,6 +448,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         )
         #
         log.info("Visitor: %s", visitor_event)
+        #
+        return None
 
     @staticmethod
     def _make_public_g_auth():
