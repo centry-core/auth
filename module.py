@@ -355,6 +355,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                     "https_redirect_excludes", []
                 ):
             if flask.request.scheme == "http":
+                log.info("HTTP -> HTTPS redirect for host: %s", flask.request.host)
                 return flask.redirect(flask.request.url.replace("http://", "https://", 1))
         #
         flask.g.auth = Holder()
