@@ -234,7 +234,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Add decorators
         self.decorators.check = self._decorator_check
         self.decorators.check_api = self._decorator_check_api
-        self.decorators.reg_permissions = self._decorator_reg_permissions
         self.decorators.check_slot = self._decorator_check_slot
         #
         self.decorators.sio_connect = self._decorator_sio_connect
@@ -258,6 +257,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Register configured public rules
         for public_rule in self.descriptor.config.get("public_rules", []):
             self.add_public_rule(public_rule)
+
+        self.register_permissions = self._reg_permissions
+
         # Enable cache
         # FIXME: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
@@ -587,11 +589,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             return _decorated
         return _decorator
 
-    def _decorator_reg_permissions(self, permissions: list | dict):
+    def _reg_permissions(self, permissions: list | dict):
         self.update_local_permissions(permissions)
-        def _decorator(func):
-            return func
-        return _decorator
 
     def _decorator_check_api(
             self, permissions: list | dict,
