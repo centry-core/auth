@@ -234,6 +234,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Add decorators
         self.decorators.check = self._decorator_check
         self.decorators.check_api = self._decorator_check_api
+        self.decorators.reg_permissions = self._decorator_reg_permissions
         self.decorators.check_slot = self._decorator_check_slot
         #
         self.decorators.sio_connect = self._decorator_sio_connect
@@ -584,6 +585,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 #
                 return access_denied_reply, 403
             return _decorated
+        return _decorator
+
+    def _decorator_reg_permissions(self, permissions: list | dict):
+        self.update_local_permissions(permissions)
+        def _decorator(func):
+            return func
         return _decorator
 
     def _decorator_check_api(
