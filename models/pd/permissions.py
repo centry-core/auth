@@ -8,10 +8,14 @@ class ModeRoles(BaseModel):
     viewer: bool = False
 
 
+class DefaultModeRoles(ModeRoles):
+    monitor: bool = False
+
+
 class RecommendedRoles(BaseModel):
     administration: ModeRoles = ModeRoles()
     developer: ModeRoles = ModeRoles()
-    default: ModeRoles = ModeRoles()
+    default: DefaultModeRoles = DefaultModeRoles()
 
 
 class Permissions(BaseModel):

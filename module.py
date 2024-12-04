@@ -257,6 +257,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Register configured public rules
         for public_rule in self.descriptor.config.get("public_rules", []):
             self.add_public_rule(public_rule)
+
+        self.register_permissions = self._reg_permissions
+
         # Enable cache
         # FIXME: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
@@ -585,6 +588,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 return access_denied_reply, 403
             return _decorated
         return _decorator
+
+    def _reg_permissions(self, permissions: list | dict):
+        self.update_local_permissions(permissions)
 
     def _decorator_check_api(
             self, permissions: list | dict,
