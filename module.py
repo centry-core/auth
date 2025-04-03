@@ -23,14 +23,14 @@ import functools
 from typing import Optional
 
 import flask  # pylint: disable=E0401
-from flask import request, make_response
+from flask import request, make_response  # pylint: disable=E0401
 
 import cachetools  # pylint: disable=E0401
 import pygeoip  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
-from pylon.core.tools import module  # pylint: disable=E0401
-from pylon.core.tools.context import Context as Holder  # pylint: disable=E0401
+from pylon.core.tools import module  # pylint: disable=E0611,E0401
+from pylon.core.tools.context import Context as Holder  # pylint: disable=E0611,E0401
 
 from .models.pd.permissions import Permissions
 
@@ -43,6 +43,7 @@ except:  # pylint: disable=W0702
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
+    """ Prepare permission set """
     # actions = {'edit', 'create', 'delete', 'view'}
     actions = set()
     if user_action := permission_dict.pop('action', None):
@@ -86,6 +87,7 @@ def generate_permissions_from_string(permission_string: str) -> set[str]:
 
 
 def has_access(user_permissions: set, required_permissions: list | dict) -> bool:
+    """ Check access """
     if isinstance(required_permissions, dict):
         required_permissions = Permissions.parse_obj(required_permissions).permissions
 
@@ -216,7 +218,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["assign_user_to_role", "auth_assign_user_to_role"],
         ]
         # SIO auth data
-        self.sio_users = dict()  # sid -> auth_data
+        self.sio_users = {}  # sid -> auth_data
         self.local_permissions = set()
         #
         self.auth_mode = "traefik"
@@ -257,9 +259,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # Register configured public rules
         for public_rule in self.descriptor.config.get("public_rules", []):
             self.add_public_rule(public_rule)
-
-        self.register_permissions = self._reg_permissions
-
+        #
+        self.register_permissions = self._reg_permissions  # pylint: disable=W0201
         # Enable cache
         # FIXME: maybe this creates malfunctions
         self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
@@ -317,7 +318,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         return response
 
-    def deinit(self):  # pylint: disable=R0201
+    def deinit(self):
         """ De-init module """
         log.info("De-initializing module")
         # Unregister auth tool
@@ -351,8 +352,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     #
 
     def _before_request_hook(self):  # pylint: disable=R0912,R0915
-        flask.session.permanent = True
-        #
         if self.descriptor.config.get("force_https_redirect", False) and \
                 flask.request.host not in self.descriptor.config.get(
                     "https_redirect_excludes", []
@@ -515,8 +514,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _decorator_sio_check(self, permissions: list, scope_id: int = 1):
         """ SIO: on event """
+        _ = scope_id
+        #
         self.update_local_permissions(permissions)
-
         #
         def _decorator(func):
             #
@@ -535,7 +535,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
             #
             return _decorated
-
         #
         return _decorator
 
@@ -568,13 +567,17 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _decorator_check(
             self, permissions: list | dict,
-            access_denied_reply={"ok": False, "error": "access_denied"},
+            access_denied_reply=...,
             mode="default",
             **kwargs
     ):
         """ Check access to route """
+        _ = kwargs
+        if access_denied_reply is ...:
+            access_denied_reply = {"ok": False, "error": "access_denied"}
+        #
         self.update_local_permissions(permissions)
-
+        #
         def _decorator(func):
             @functools.wraps(func)
             def _decorated(*_args, **_kwargs):
@@ -587,6 +590,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 #
                 return access_denied_reply, 403
             return _decorated
+        #
         return _decorator
 
     def _reg_permissions(self, permissions: list | dict):
@@ -616,7 +620,8 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 except (AttributeError, IndexError):
                     mode = "default"
                 try:
-                    project_id = kwargs.get("project_id") or _kwargs.get('project_id') or _args[0].project_id
+                    project_id = \
+                        kwargs.get("project_id") or _kwargs.get('project_id') or _args[0].project_id
                 except (AttributeError, IndexError):
                     project_id = None
 
@@ -753,8 +758,11 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             except:  # pylint: disable=W0702
                 project_id = None
 
-        # log.info('resolve_permissions mode %s | auth_data %s | project_id %s', mode, auth_data.__dict__, project_id)
-        if auth_data.type == "user":
+        # log.info(
+        #     'resolve_permissions mode %s | auth_data %s | project_id %s',
+        #     mode, auth_data.__dict__, project_id,
+        # )
+        if auth_data.type == "user":  # pylint: disable=R1705
             return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
         elif auth_data.type == "token":
             return self.get_token_permissions(auth_data.id, mode=mode, project_id=project_id)
