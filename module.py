@@ -400,12 +400,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                         "X-Auth-Reference", "-"
                     )
                 elif is_public_route:
+                    # Keep session here
                     self._make_public_g_auth()
                 elif auth_status["action"] == "redirect":
+                    flask.session.destroy()  # Clear session
                     return flask.redirect(auth_status["target"])
                 elif auth_status["action"] == "make_response":
+                    flask.session.destroy()  # Clear session
                     return flask.make_response(auth_status["data"], auth_status["status_code"])
                 else:
+                    # Keep session here (for now)
                     return self.access_denied_reply()
             #
         #
