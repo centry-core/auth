@@ -766,12 +766,17 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #     'resolve_permissions mode %s | auth_data %s | project_id %s',
         #     mode, auth_data.__dict__, project_id,
         # )
-        if auth_data.type == "user":  # pylint: disable=R1705
-            return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
-        elif auth_data.type == "token":
-            return self.get_token_permissions(auth_data.id, mode=mode, project_id=project_id)
-        else:
-            # Public: no permissions
+
+        try:
+            if auth_data.type == "user":  # pylint: disable=R1705
+                return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
+            elif auth_data.type == "token":
+                return self.get_token_permissions(auth_data.id, mode=mode, project_id=project_id)
+            else:
+                # Public: no permissions
+                return set()
+        except:  # pylint: disable=W0702
+            log.exception("Failed to get permissions")
             return set()
 
 
