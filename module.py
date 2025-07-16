@@ -457,7 +457,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             "auth_visitor", visitor_event,
         )
         #
-        log.info("Visitor: %s", visitor_event)
+        log.debug("Visitor: %s", visitor_event)
         #
         return None
 
