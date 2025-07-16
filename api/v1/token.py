@@ -3,7 +3,20 @@ from datetime import datetime, timedelta
 from flask import jsonify, request
 from pylon.core.tools import log
 
-from tools import auth, api_tools
+from tools import auth
+
+try:
+    from tools import api_tools
+except:  # pylint: disable=W0702
+    from flask_restful import Resource
+    from pylon.core.tools.context import Context as Holder  # pylint: disable=E0611,E0401
+    #
+    class APIBase(Resource):
+        def __init__(self, module):
+            self.module = module
+    #
+    api_tools = Holder()
+    api_tools.APIBase = APIBase
 
 
 class API(api_tools.APIBase):
