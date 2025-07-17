@@ -27,15 +27,20 @@ class API(api_tools.APIBase):
 
     def get(self, uid: str | None = None, **kwargs):
         user = self.module.current_user()
+        #
         if not user:
             return None, 403
+        #
         if uid:
             try:
                 token_data = auth.get_token(uuid=uid)
             except RuntimeError:
                 return {'error': f'token with uid {uid} not found'}, 400
-            token_data['token'] = auth.encode_token(token_data['id'])
+            #
+            token_data['token'] = f"...{str(auth.encode_token(token_data['id']))[-7:]}"
+            #
             return jsonify(token_data)
+        #
         all_tokens = auth.list_tokens(user['id'])
         #
         # log.warning('Token for user %s : %s', user, all_tokens)
