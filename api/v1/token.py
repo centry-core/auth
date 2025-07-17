@@ -37,7 +37,7 @@ class API(api_tools.APIBase):
             token_data['token'] = auth.encode_token(token_data['id'])
             return jsonify(token_data)
         all_tokens = auth.list_tokens(user['id'])
-
+        #
         # log.warning('Token for user %s : %s', user, all_tokens)
         # # {
         # #     "expires": null,
@@ -46,8 +46,10 @@ class API(api_tools.APIBase):
         # #     "user_id": 1,
         # #     "uuid": "62b82885-6cd8-4b07-a0c2-5fc239c22ffa"
         # # }
+        #
         for i in all_tokens:
-            i['token'] = auth.encode_token(i['id'])
+            i['token'] = f"...{str(auth.encode_token(i['id']))[-7:]}"
+        #
         return jsonify(all_tokens)
 
     def post(self, **kwargs):
