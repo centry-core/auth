@@ -300,7 +300,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         for key, value in additional_headers.items():
             response.headers[key] = value
         #
-        if c.ALLOW_CORS:
+        if c.ALLOW_CORS or self.descriptor.config.get("allow_cors", False):
             if request.method == 'OPTIONS':
                 response = make_response()
                 response.status_code = 200
@@ -457,7 +457,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             "auth_visitor", visitor_event,
         )
         #
-        log.info("Visitor: %s", visitor_event)
+        log.debug("Visitor: %s", visitor_event)
         #
         return None
 
