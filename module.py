@@ -678,7 +678,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 current_permissions = self.resolve_permissions(
                     mode=mode, auth_data=context.auth
                 )
-                log.debug("from check_slot %s %s %s", mode, current_permissions, permissions)
                 #
                 if has_access(current_permissions, permissions):
                     return func(*_args, **_kvargs)
