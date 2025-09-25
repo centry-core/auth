@@ -262,19 +262,20 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         self.register_permissions = self._reg_permissions  # pylint: disable=W0201
         # Enable cache
-        # FIXME: maybe this creates malfunctions
-        self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
-        )(self.get_user_permissions)
-        self.get_token_permissions = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
-        )(self.get_token_permissions)
-        self.get_user = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
-        )(self.get_user)
-        self.get_token = cachetools.cached(  # pylint: disable=W0201
-            cache=cachetools.TTLCache(maxsize=1024, ttl=60)
-        )(self.get_token)
+        if self.descriptor.config.get("enable_cache", True):
+            # FIXME: maybe this creates malfunctions
+            self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
+                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+            )(self.get_user_permissions)
+            self.get_token_permissions = cachetools.cached(  # pylint: disable=W0201
+                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+            )(self.get_token_permissions)
+            self.get_user = cachetools.cached(  # pylint: disable=W0201
+                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+            )(self.get_user)
+            self.get_token = cachetools.cached(  # pylint: disable=W0201
+                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+            )(self.get_token)
         # Load GeoIP databases
         try:
             self.geoip = pygeoip.GeoIP("/usr/share/GeoIP/GeoIP.dat")  # pylint: disable=W0201
