@@ -387,7 +387,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                     is_public_route = True
             # Call authorize RPC
             try:
-                auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
+                auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
                     source, headers, cookies
                 )
             except:  # pylint: disable=W0702
@@ -757,7 +757,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
         if not project_id:
             try:
-                project_id = self.context.rpc_manager.timeout(3).project_get_id()
+                project_id = self.context.rpc_manager.timeout(15).project_get_id()
             except:  # pylint: disable=W0702
                 project_id = None
 
@@ -810,7 +810,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             cookies = dict(req.cookies.items())
             # Call authorize RPC
             try:
-                auth_status = self.context.rpc_manager.timeout(5).auth_authorize(
+                auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
                     source, headers, cookies
                 )
             except:  # pylint: disable=W0702
