@@ -223,6 +223,11 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         self.auth_mode = "traefik"
         self.public_rules = []  # [rule]
+        # Caches
+        self.get_user_permissions_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
+        self.get_token_permissions_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
+        self.get_user_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
+        self.get_token_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
 
     #
     # Module
@@ -265,16 +270,19 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         if self.descriptor.config.get("enable_cache", True):
             # FIXME: maybe this creates malfunctions
             self.get_user_permissions = cachetools.cached(  # pylint: disable=W0201
-                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+                cache=self.get_user_permissions_cache
             )(self.get_user_permissions)
+            #
             self.get_token_permissions = cachetools.cached(  # pylint: disable=W0201
-                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+                cache=self.get_token_permissions_cache
             )(self.get_token_permissions)
+            #
             self.get_user = cachetools.cached(  # pylint: disable=W0201
-                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+                cache=self.get_user_cache
             )(self.get_user)
+            #
             self.get_token = cachetools.cached(  # pylint: disable=W0201
-                cache=cachetools.TTLCache(maxsize=1024, ttl=60)
+                cache=self.get_token_cache
             )(self.get_token)
         # Load GeoIP databases
         try:
