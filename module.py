@@ -233,6 +233,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Module
     #
 
+    def preload(self):
+        """ Preload handler """
+        self.descriptor.register_tool("auth", self)
+
     def init(self):
         """ Init module """
         log.info("Initializing module")
