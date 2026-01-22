@@ -260,7 +260,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Redis auth cache helpers
     #
 
-    def _get_redis_client(self):
+    def get_cache_redis_client(self):
         """ Lazy init Redis client for auth caching """
         redis_config = self.descriptor.config.get("redis_config", None)  # pylint: disable=E1101
         #
@@ -335,7 +335,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _get_cached_auth(self, cache_key: str) -> Optional[dict]:
         """ Get auth result from Redis cache """
-        redis_client = self._get_redis_client()
+        redis_client = self.get_cache_redis_client()
         if not redis_client:
             return None
         try:
@@ -349,7 +349,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _set_cached_auth(self, cache_key: str, auth_status: dict) -> None:
         """ Store auth result in Redis cache """
-        redis_client = self._get_redis_client()
+        redis_client = self.get_cache_redis_client()
         if not redis_client:
             return
         try:
