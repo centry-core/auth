@@ -867,29 +867,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Tools: current
     #
 
-    def _get_project_permissions_direct(self, user_id: int, project_id: int) -> set:
-        """Get project permissions directly without RPC round-trip through pylon_auth.
-
-        This is an optimization for project-scoped modes (default, prompt_lib) where
-        admin_get_permissions_in_project is on pylon_main itself, avoiding the
-        unnecessary hop: pylon_main -> pylon_auth -> pylon_main.
-        """
-        cache_key = (user_id, project_id)
-        cached = self.get_project_permissions_cache.get(cache_key)
-        if cached is not None:
-            return cached
-
-        try:
-            permissions = self.context.rpc_manager.timeout(15).admin_get_permissions_in_project(
-                project_id=project_id,
-                user_id=user_id
-            )
-            self.get_project_permissions_cache[cache_key] = permissions
-            return permissions
-        except:  # pylint: disable=W0702
-            log.exception("Failed to get project permissions directly")
-            return set()
-
     def resolve_permissions(self, mode: str = 'administration', auth_data=None,
                             project_id: Optional[int] = None) -> set:
         """ Resolve current permissions """
@@ -908,21 +885,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         # )
 
         try:
-            # Optimization: For project-scoped modes, call admin_get_permissions_in_project
-            # directly on pylon_main instead of going through pylon_auth RPC round-trip.
-            # This eliminates: pylon_main -> pylon_auth -> pylon_main hop.
-            if mode in ('default', 'prompt_lib') and project_id and auth_data.type in ("user", "token"):
-                user_id = auth_data.id
-                if auth_data.type == "token":
-                    # For tokens, we need to get the user_id first
-                    try:
-                        token = self.get_token(token_id=auth_data.id)
-                        user_id = token["user_id"]
-                    except:  # pylint: disable=W0702
-                        return set()
-                return self._get_project_permissions_direct(user_id, project_id)
-
-            # Fall back to original RPC flow for administration mode or when no project_id
             if auth_data.type == "user":  # pylint: disable=R1705
                 return self.get_user_permissions(auth_data.id, mode=mode, project_id=project_id)
             elif auth_data.type == "token":
