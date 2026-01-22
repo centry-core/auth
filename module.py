@@ -247,9 +247,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         if self._redis_client is None and cfg is not None:
             try:
                 self._redis_client = redis.Redis(
-                    host=getattr(cfg, 'REDIS_HOST', 'centry-redis'),
+                    host=getattr(cfg, 'REDIS_HOST', 'redis'),
                     port=getattr(cfg, 'REDIS_PORT', 6379),
-                    db=getattr(cfg, 'REDIS_DB', 2),  # Use default Redis DB
+                    db=0,  # Use DB 0 for consistency with other caches
                     username=getattr(cfg, 'REDIS_USER', ''),
                     password=getattr(cfg, 'REDIS_PASSWORD', ''),
                     ssl=getattr(cfg, 'REDIS_USE_SSL', False),
@@ -259,16 +259,36 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                 )
                 # Test connection
                 self._redis_client.ping()
-                log.debug("[AUTH_CACHE] Redis client initialized for auth caching")
+                log.info("[AUTH_CACHE] Redis client initialized for auth caching")
             except Exception as e:
-                log.warning(f"[AUTH_CACHE] Failed to init Redis: {e}")
+                log.error(f"[AUTH_CACHE] Failed to init Redis: {e}")
                 self._redis_client = False  # Mark as failed, don't retry
         return self._redis_client if self._redis_client else None
 
-    def _get_auth_cache_key(self, cookies: dict) -> Optional[str]:
-        """ Generate cache key from session cookie """
-        # Look for common session cookie names
-        session_cookie = cookies.get('session') or cookies.get('SESSION')
+    def _get_auth_cache_key(self, cookies: dict, headers: dict = None) -> Optional[str]:
+        """ Generate cache key from session cookie or Authorization header """
+        # First, check for Authorization header (token-based auth)
+        if headers:
+            auth_header = headers.get("Authorization") or headers.get("authorization")
+            if auth_header:
+                # Hash the token to avoid storing raw token values
+                key_hash = hashlib.sha256(auth_header.encode()).hexdigest()[:32]
+                return f"auth:token:{key_hash}"
+
+        # Then, try to get the Flask session cookie name from app config
+        session_cookie = None
+        try:
+            session_cookie_name = self.context.app.session_cookie_name
+            if session_cookie_name:
+                session_cookie = cookies.get(session_cookie_name)
+        except:
+            pass
+        # Fallback: look for any session cookie (common patterns)
+        if not session_cookie:
+            for cookie_name, cookie_value in cookies.items():
+                if '_session' in cookie_name.lower() or cookie_name.lower() == 'session':
+                    session_cookie = cookie_value
+                    break
         if not session_cookie:
             return None
         # Hash the session to avoid storing raw session values
@@ -283,10 +303,10 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         try:
             cached = redis_client.get(cache_key)
             if cached:
-                log.debug(f"[AUTH_CACHE] Cache HIT: {cache_key[:20]}...")
+                log.info(f"[AUTH_CACHE] Cache HIT: {cache_key[:20]}...")
                 return json.loads(cached)
         except Exception as e:
-            log.warning(f"[AUTH_CACHE] Redis get failed: {e}")
+            log.error(f"[AUTH_CACHE] Redis get failed: {e}")
         return None
 
     def _set_cached_auth(self, cache_key: str, auth_status: dict) -> None:
@@ -296,9 +316,9 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             return
         try:
             redis_client.setex(cache_key, self._auth_cache_ttl, json.dumps(auth_status))
-            log.debug(f"[AUTH_CACHE] Cache SET: {cache_key[:20]}... (TTL={self._auth_cache_ttl}s)")
+            log.info(f"[AUTH_CACHE] Cache SET: {cache_key[:20]}... (TTL={self._auth_cache_ttl}s)")
         except Exception as e:
-            log.warning(f"[AUTH_CACHE] Redis set failed: {e}")
+            log.error(f"[AUTH_CACHE] Redis set failed: {e}")
 
     #
     # Module
@@ -471,7 +491,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
                     is_public_route = True
             # Call authorize RPC (with Redis caching for performance)
             auth_status = None
-            cache_key = self._get_auth_cache_key(cookies)
+            cache_key = self._get_auth_cache_key(cookies, headers)
             #
             # Try Redis cache first
             if cache_key:
@@ -946,7 +966,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             cookies = dict(req.cookies.items())
             # Call authorize RPC (with Redis caching for performance)
             auth_status = None
-            cache_key = self._get_auth_cache_key(cookies)
+            cache_key = self._get_auth_cache_key(cookies, headers)
             #
             # Try Redis cache first
             if cache_key:
