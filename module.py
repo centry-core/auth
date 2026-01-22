@@ -238,6 +238,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["check_user_in_project", "auth_check_user_in_project"],
             ["check_user_in_projects", "auth_check_user_in_projects"],
             ["list_project_users", "auth_list_project_users"],
+            ["apply_project_roles_snapshot", "auth_apply_project_roles_snapshot"],
         ]
         # SIO auth data
         self.sio_users = {}  # sid -> auth_data
