@@ -321,7 +321,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         try:
             cached = redis_client.get(cache_key)
             if cached:
-                log.info(f"[AUTH_CACHE] Cache HIT: {cache_key[:20]}...")
+                log.debug(f"[AUTH_CACHE] Cache HIT: {cache_key[:20]}...")
                 return json.loads(cached)
         except Exception as e:
             log.error(f"[AUTH_CACHE] Redis get failed: {e}")
@@ -334,7 +334,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             return
         try:
             redis_client.setex(cache_key, self._auth_cache_ttl, json.dumps(auth_status))
-            log.info(f"[AUTH_CACHE] Cache SET: {cache_key[:20]}... (TTL={self._auth_cache_ttl}s)")
+            log.debug(f"[AUTH_CACHE] Cache SET: {cache_key[:20]}... (TTL={self._auth_cache_ttl}s)")
         except Exception as e:
             log.error(f"[AUTH_CACHE] Redis set failed: {e}")
 
