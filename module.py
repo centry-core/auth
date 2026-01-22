@@ -262,25 +262,45 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _get_redis_client(self):
         """ Lazy init Redis client for auth caching """
-        if self._redis_client is None and cfg is not None:
+        redis_config = self.descriptor.config.get("redis_config", None)  # pylint: disable=E1101
+        #
+        if self._redis_client is None and (redis_config is not None or cfg is not None):
             try:
-                self._redis_client = redis.Redis(
-                    host=getattr(cfg, 'REDIS_HOST', 'redis'),
-                    port=getattr(cfg, 'REDIS_PORT', 6379),
-                    db=0,  # Use DB 0 for consistency with other caches
-                    username=getattr(cfg, 'REDIS_USER', ''),
-                    password=getattr(cfg, 'REDIS_PASSWORD', ''),
-                    ssl=getattr(cfg, 'REDIS_USE_SSL', False),
-                    decode_responses=True,
-                    socket_timeout=1,  # Fast timeout
-                    socket_connect_timeout=1,
-                )
+                if not redis_config:
+                    redis_config = {
+                        "host": getattr(cfg, 'REDIS_HOST', 'redis'),
+                        "port": getattr(cfg, 'REDIS_PORT', 6379),
+                        "db": 0,  # Use DB 0 for consistency with other caches
+                        "username": getattr(cfg, 'REDIS_USER', ''),
+                        "password": getattr(cfg, 'REDIS_PASSWORD', ''),
+                        "ssl": getattr(cfg, 'REDIS_USE_SSL', False),
+                        "decode_responses": True,
+                        "socket_timeout": 1,  # Fast timeout
+                        "socket_connect_timeout": 1,
+                    }
+                #
+                redis_config = redis_config.copy()
+                #
+                if redis_config.get("use_managed_identity", False):
+                    redis_config.pop("use_managed_identity")
+                    redis_config.pop("password", None)
+                    #
+                    from redis_entraid.cred_provider import create_from_default_azure_credential  # pylint: disable=C0415,E0401,W0401
+                    #
+                    credential_provider = create_from_default_azure_credential(  # pylint: disable=E0602
+                        ("https://redis.azure.com/.default",),
+                    )
+                    #
+                    redis_config["credential_provider"] = credential_provider
+                #
+                self._redis_client = redis.Redis(**redis_config)
                 # Test connection
                 self._redis_client.ping()
                 log.info("[AUTH_CACHE] Redis client initialized for auth caching")
             except Exception as e:
                 log.error(f"[AUTH_CACHE] Failed to init Redis: {e}")
                 self._redis_client = False  # Mark as failed, don't retry
+        #
         return self._redis_client if self._redis_client else None
 
     def _get_auth_cache_key(self, cookies: dict, headers: dict = None) -> Optional[str]:
