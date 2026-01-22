@@ -221,6 +221,23 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["delete_role", "auth_delete_role"],
             ["update_role_name", "auth_update_role_name"],
             ["assign_user_to_role", "auth_assign_user_to_role"],
+            #
+            ["add_project_role", "auth_add_project_role"],
+            ["update_project_role", "auth_update_project_role"],
+            ["delete_project_role", "auth_delete_project_role"],
+            ["get_project_role", "auth_get_project_role"],
+            ["list_project_roles", "auth_list_project_roles"],
+            ["add_project_role_permission", "auth_add_project_role_permission"],
+            ["delete_project_role_permission", "auth_delete_project_role_permission"],
+            ["list_project_role_permissions", "auth_list_project_role_permissions"],
+            ["add_project_user_role", "auth_add_project_user_role"],
+            ["delete_project_user_role", "auth_delete_project_user_role"],
+            ["update_project_user_roles", "auth_update_project_user_roles"],
+            ["list_project_user_roles", "auth_list_project_user_roles"],
+            ["get_project_user_permissions", "auth_get_project_user_permissions"],
+            ["check_user_in_project", "auth_check_user_in_project"],
+            ["check_user_in_projects", "auth_check_user_in_projects"],
+            ["list_project_users", "auth_list_project_users"],
         ]
         # SIO auth data
         self.sio_users = {}  # sid -> auth_data
