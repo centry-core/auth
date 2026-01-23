@@ -1,5 +1,6 @@
 from flask import jsonify
 from flask_restful import Resource
+from tools import api_tools
 
 
 class API(Resource):
@@ -10,6 +11,7 @@ class API(Resource):
         '<string:mode>/<int:project_id>',
     ]
 
+    @api_tools.endpoint_metrics
     def get(self, mode, project_id):
         current_permissions = self.module.resolve_permissions(
             mode=mode,

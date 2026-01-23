@@ -19,12 +19,15 @@
 
 import re
 import time
+import json
+import hashlib
 import functools
 from typing import Optional
 
 import flask  # pylint: disable=E0401
 from flask import request, make_response  # pylint: disable=E0401
 
+import redis  # pylint: disable=E0401
 import cachetools  # pylint: disable=E0401
 import pygeoip  # pylint: disable=E0401
 
@@ -36,10 +39,12 @@ from .models.pd.permissions import Permissions
 
 try:
     from tools import constants as c  # pylint: disable=E0401
+    from tools import config as cfg  # pylint: disable=E0401
 except:  # pylint: disable=W0702
     c = Holder()
     c.DEFAULT_MODE = "default"
     c.ALLOW_CORS = False
+    cfg = None
 
 
 def generate_permissions(permission_dict: dict[str, str]) -> set[str]:
@@ -216,6 +221,24 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["delete_role", "auth_delete_role"],
             ["update_role_name", "auth_update_role_name"],
             ["assign_user_to_role", "auth_assign_user_to_role"],
+            #
+            ["add_project_role", "auth_add_project_role"],
+            ["update_project_role", "auth_update_project_role"],
+            ["delete_project_role", "auth_delete_project_role"],
+            ["get_project_role", "auth_get_project_role"],
+            ["list_project_roles", "auth_list_project_roles"],
+            ["add_project_role_permission", "auth_add_project_role_permission"],
+            ["delete_project_role_permission", "auth_delete_project_role_permission"],
+            ["list_project_role_permissions", "auth_list_project_role_permissions"],
+            ["add_project_user_role", "auth_add_project_user_role"],
+            ["delete_project_user_role", "auth_delete_project_user_role"],
+            ["update_project_user_roles", "auth_update_project_user_roles"],
+            ["list_project_user_roles", "auth_list_project_user_roles"],
+            ["get_project_user_permissions", "auth_get_project_user_permissions"],
+            ["check_user_in_project", "auth_check_user_in_project"],
+            ["check_user_in_projects", "auth_check_user_in_projects"],
+            ["list_project_users", "auth_list_project_users"],
+            ["apply_project_roles_snapshot", "auth_apply_project_roles_snapshot"],
         ]
         # SIO auth data
         self.sio_users = {}  # sid -> auth_data
@@ -228,6 +251,112 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         self.get_token_permissions_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
         self.get_user_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
         self.get_token_cache = cachetools.TTLCache(maxsize=20480, ttl=60)
+        self.get_project_permissions_cache = cachetools.TTLCache(maxsize=20480, ttl=60)  # Direct project permissions cache
+        # Redis cache for auth_authorize (under load optimization)
+        self._redis_client = None
+        self._auth_cache_ttl = 60  # seconds
+
+    #
+    # Redis auth cache helpers
+    #
+
+    def get_cache_redis_client(self):
+        """ Lazy init Redis client for auth caching """
+        redis_config = self.descriptor.config.get("redis_config", None)  # pylint: disable=E1101
+        #
+        if self._redis_client is None and (redis_config is not None or cfg is not None):
+            try:
+                if not redis_config:
+                    redis_config = {
+                        "host": getattr(cfg, 'REDIS_HOST', 'redis'),
+                        "port": getattr(cfg, 'REDIS_PORT', 6379),
+                        "db": 0,  # Use DB 0 for consistency with other caches
+                        "username": getattr(cfg, 'REDIS_USER', ''),
+                        "password": getattr(cfg, 'REDIS_PASSWORD', ''),
+                        "ssl": getattr(cfg, 'REDIS_USE_SSL', False),
+                        "decode_responses": True,
+                        "socket_timeout": 1,  # Fast timeout
+                        "socket_connect_timeout": 1,
+                    }
+                #
+                redis_config = redis_config.copy()
+                #
+                if redis_config.get("use_managed_identity", False):
+                    redis_config.pop("use_managed_identity")
+                    redis_config.pop("password", None)
+                    #
+                    from redis_entraid.cred_provider import create_from_default_azure_credential  # pylint: disable=C0415,E0401,W0401
+                    #
+                    credential_provider = create_from_default_azure_credential(  # pylint: disable=E0602
+                        ("https://redis.azure.com/.default",),
+                    )
+                    #
+                    redis_config["credential_provider"] = credential_provider
+                #
+                self._redis_client = redis.Redis(**redis_config)
+                # Test connection
+                self._redis_client.ping()
+                log.info("[AUTH_CACHE] Redis client initialized for auth caching")
+            except Exception as e:
+                log.error(f"[AUTH_CACHE] Failed to init Redis: {e}")
+                self._redis_client = False  # Mark as failed, don't retry
+        #
+        return self._redis_client if self._redis_client else None
+
+    def _get_auth_cache_key(self, cookies: dict, headers: dict = None) -> Optional[str]:
+        """ Generate cache key from session cookie or Authorization header """
+        # First, check for Authorization header (token-based auth)
+        if headers:
+            auth_header = headers.get("Authorization") or headers.get("authorization")
+            if auth_header:
+                # Hash the token to avoid storing raw token values
+                key_hash = hashlib.sha256(auth_header.encode()).hexdigest()[:32]
+                return f"auth:token:{key_hash}"
+
+        # Then, try to get the Flask session cookie name from app config
+        session_cookie = None
+        try:
+            session_cookie_name = self.context.app.session_cookie_name
+            if session_cookie_name:
+                session_cookie = cookies.get(session_cookie_name)
+        except:
+            pass
+        # Fallback: look for any session cookie (common patterns)
+        if not session_cookie:
+            for cookie_name, cookie_value in cookies.items():
+                if '_session' in cookie_name.lower() or cookie_name.lower() == 'session':
+                    session_cookie = cookie_value
+                    break
+        if not session_cookie:
+            return None
+        # Hash the session to avoid storing raw session values
+        key_hash = hashlib.sha256(session_cookie.encode()).hexdigest()[:32]
+        return f"auth:session:{key_hash}"
+
+    def _get_cached_auth(self, cache_key: str) -> Optional[dict]:
+        """ Get auth result from Redis cache """
+        redis_client = self.get_cache_redis_client()
+        if not redis_client:
+            return None
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                log.debug(f"[AUTH_CACHE] Cache HIT: {cache_key[:20]}...")
+                return json.loads(cached)
+        except Exception as e:
+            log.error(f"[AUTH_CACHE] Redis get failed: {e}")
+        return None
+
+    def _set_cached_auth(self, cache_key: str, auth_status: dict) -> None:
+        """ Store auth result in Redis cache """
+        redis_client = self.get_cache_redis_client()
+        if not redis_client:
+            return
+        try:
+            redis_client.setex(cache_key, self._auth_cache_ttl, json.dumps(auth_status))
+            log.debug(f"[AUTH_CACHE] Cache SET: {cache_key[:20]}... (TTL={self._auth_cache_ttl}s)")
+        except Exception as e:
+            log.error(f"[AUTH_CACHE] Redis set failed: {e}")
 
     #
     # Module
@@ -398,14 +527,28 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             for rule in self.public_rules:
                 if self.public_rule_matches(rule, source):
                     is_public_route = True
-            # Call authorize RPC
-            try:
-                auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
-                    source, headers, cookies
-                )
-            except:  # pylint: disable=W0702
-                self._make_public_g_auth()
-            else:
+            # Call authorize RPC (with Redis caching for performance)
+            auth_status = None
+            cache_key = self._get_auth_cache_key(cookies, headers)
+            #
+            # Try Redis cache first
+            if cache_key:
+                auth_status = self._get_cached_auth(cache_key)
+            #
+            # Cache miss - call RPC
+            if auth_status is None:
+                try:
+                    auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
+                        source, headers, cookies
+                    )
+                    # Cache successful auth results
+                    if cache_key and auth_status.get("auth_ok"):
+                        self._set_cached_auth(cache_key, auth_status)
+                except:  # pylint: disable=W0702
+                    self._make_public_g_auth()
+                    auth_status = None  # Mark as handled
+            #
+            if auth_status is not None:
                 if auth_status["auth_ok"]:
                     flask.g.auth.type = auth_status["headers"].get("X-Auth-Type", "public")
                     flask.g.auth.id = auth_status["headers"].get("X-Auth-ID", "-")
@@ -821,16 +964,30 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             }
             headers = dict(req.headers.items())
             cookies = dict(req.cookies.items())
-            # Call authorize RPC
-            try:
-                auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
-                    source, headers, cookies
-                )
-            except:  # pylint: disable=W0702
-                auth_data.type = "public"
-                auth_data.id = "-"
-                auth_data.reference = "-"
-            else:
+            # Call authorize RPC (with Redis caching for performance)
+            auth_status = None
+            cache_key = self._get_auth_cache_key(cookies, headers)
+            #
+            # Try Redis cache first
+            if cache_key:
+                auth_status = self._get_cached_auth(cache_key)
+            #
+            # Cache miss - call RPC
+            if auth_status is None:
+                try:
+                    auth_status = self.context.rpc_manager.timeout(15).auth_authorize(
+                        source, headers, cookies
+                    )
+                    # Cache successful auth results
+                    if cache_key and auth_status.get("auth_ok"):
+                        self._set_cached_auth(cache_key, auth_status)
+                except:  # pylint: disable=W0702
+                    auth_data.type = "public"
+                    auth_data.id = "-"
+                    auth_data.reference = "-"
+                    auth_status = None  # Mark as handled
+            #
+            if auth_status is not None:
                 if auth_status["auth_ok"]:
                     auth_data.type = auth_status["headers"].get("X-Auth-Type", "public")
                     auth_data.id = auth_status["headers"].get("X-Auth-ID", "-")
