@@ -260,6 +260,17 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
     # Redis auth cache helpers
     #
 
+    def _register_openapi(self):
+        """Register API endpoints with OpenAPI registry."""
+        from tools import openapi_registry # pylint: disable=E0401,C0415
+        from .api import v2 as api_v2
+        openapi_registry.register_plugin(
+            plugin_name="auth",
+            version=self.descriptor.metadata.get("version", "1.0.0"),
+            description="Auth API endpoints",
+            api_module=api_v2,
+        )
+
     def get_cache_redis_client(self):
         """ Lazy init Redis client for auth caching """
         redis_config = self.descriptor.config.get("redis_config", None)  # pylint: disable=E1101
@@ -434,6 +445,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #
         # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
+        self._register_openapi()
 
     def _after_request_hook(self, response):
         additional_headers = self.descriptor.config.get(

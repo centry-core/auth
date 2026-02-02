@@ -2,7 +2,7 @@ from queue import Empty
 from flask import g, request, jsonify
 from pylon.core.tools import log
 
-from tools import auth
+from tools import auth, register_openapi
 
 try:
     from tools import api_tools, config as c
@@ -30,6 +30,12 @@ class API(api_tools.APIBase):
     #     c.DEFAULT_MODE: ProjectAPI,
     # }
 
+    @register_openapi(
+        name="Get Current User",
+        description="Get information about the currently authenticated user.",
+        mcp_tool=True
+    )
+    @api_tools.endpoint_metrics
     def get(self, **kwargs):
         user = self.module.current_user()
         try:
