@@ -1055,3 +1055,39 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         state.theme.active_subsection = flask.g.theme.active_subsection
         #
         return state
+
+    #
+    # Tools: user in project
+    #
+
+    def is_user_in_project(self, project_id):
+        """ Check if user in specific project """
+        if not project_id:
+            return False
+        #
+        current_user = self.current_user()
+        user_id = current_user.get("id", None)
+        #
+        if not user_id:
+            return False
+        #
+        return self.check_user_in_project(project_id, user_id)
+
+    def is_sio_user_in_project(self, sid, project_id):
+        """ Check if SIO user in specific project """
+        if sid not in self.sio_users:
+            return False
+        #
+        if not project_id:
+            return False
+        #
+        current_user = self.current_user(
+            auth_data=self.sio_users[sid]
+        )
+        #
+        user_id = current_user.get("id", None)
+        #
+        if not user_id:
+            return False
+        #
+        return self.check_user_in_project(project_id, user_id)
