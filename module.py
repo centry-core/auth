@@ -163,6 +163,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["delete_user", "auth_delete_user"],
             ["get_user", "auth_get_user"],
             ["list_users", "auth_list_users"],
+            ["list_users_paginated", "auth_list_users_paginated"],
             #
             ["add_user_provider", "auth_add_user_provider"],
             ["remove_user_provider", "auth_remove_user_provider"],
@@ -221,6 +222,7 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
             ["delete_role", "auth_delete_role"],
             ["update_role_name", "auth_update_role_name"],
             ["assign_user_to_role", "auth_assign_user_to_role"],
+            ["remove_user_from_role", "auth_remove_user_from_role"],
             #
             ["add_project_role", "auth_add_project_role"],
             ["update_project_role", "auth_update_project_role"],
