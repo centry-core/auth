@@ -1049,10 +1049,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         state.request.args = dict(flask.request.args)
         #
         state.theme = Holder()
-        state.theme.active_mode = flask.g.theme.active_mode
-        state.theme.active_parameter = flask.g.theme.active_parameter
-        state.theme.active_section = flask.g.theme.active_section
-        state.theme.active_subsection = flask.g.theme.active_subsection
+        try:
+            state.theme.active_mode = flask.g.theme.active_mode
+            state.theme.active_parameter = flask.g.theme.active_parameter
+            state.theme.active_section = flask.g.theme.active_section
+            state.theme.active_subsection = flask.g.theme.active_subsection
+        except AttributeError:
+            state.theme.active_mode = c.DEFAULT_MODE
+            state.theme.active_parameter = None
+            state.theme.active_section = None
+            state.theme.active_subsection = None
         #
         return state
 
