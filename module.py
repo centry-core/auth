@@ -440,14 +440,15 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
         #     self.geoip6 = pygeoip.GeoIP("/usr/share/GeoIP/GeoIPv6.dat")  # pylint: disable=W0201
         # except:  # pylint: disable=W0702
         #     self.geoip6 = None  # pylint: disable=W0201
-        # Debug
-        # if self.context.debug:
-        self.descriptor.init_api()
+        # Register API endpoints (enable on pylon_main only, false by default)
+        if self.descriptor.config.get("register_api", False):
+            self.descriptor.init_api()
         self.descriptor.init_rpcs()
         #
         # log.info("Running DB migrations")
         # db_migrations.run_db_migrations(self, db.url)
-        self._register_openapi()
+        if self.descriptor.config.get("register_api", False):
+            self._register_openapi()
 
     def _after_request_hook(self, response):
         additional_headers = self.descriptor.config.get(
