@@ -1,6 +1,13 @@
+import functools
 from flask import jsonify
 from flask_restful import Resource
-from tools import api_tools
+
+try:
+    from tools import api_tools
+except:
+    from pylon.core.tools.context import Context as Holder
+    api_tools = Holder()
+    api_tools.endpoint_metrics = lambda *args, **kwargs: lambda f: f
 
 
 class API(Resource):

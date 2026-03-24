@@ -264,7 +264,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0902
 
     def _register_openapi(self):
         """Register API endpoints with OpenAPI registry."""
-        from tools import openapi_registry # pylint: disable=E0401,C0415
+        try:
+            from tools import openapi_registry # pylint: disable=E0401,C0415
+        except ImportError:  # pylint: disable=W0702
+            # Standalone mode - OpenAPI registration not available
+            return
+        #
         from .api import v2 as api_v2
         openapi_registry.register_plugin(
             plugin_name="auth",
